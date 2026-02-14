@@ -974,12 +974,7 @@ export default function AudioChat() {
 
             {/* Browser Audio Playback Button */}
             <div className="mb-4 flex justify-center">
-              <StartAudio label={
-                <span className="flex items-center gap-2">
-                  <icons.speaker className={iconSizes.md} />
-                  Click to enable audio playback
-                </span>
-              } />
+              <StartAudio label="Click to enable audio playback" />
             </div>
 
             <ParticipantList />
