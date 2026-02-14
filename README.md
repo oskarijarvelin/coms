@@ -4,14 +4,15 @@ A simple and modern web-based audio chat tool built with Next.js, Tailwind CSS, 
 
 ## Features
 
-- 🎙️ Real-time audio communication
-- 🎧 Enhanced audio quality (echo cancellation, noise suppression, auto gain control)
-- 💬 Persistent text chat with localStorage
-- 👥 Multiple participants support
-- 🎨 Modern and clean UI with Tailwind CSS
-- 🔒 Secure token-based authentication
-- 📱 Responsive design
-- 🚀 Built with Next.js 16 and React 19
+- Real-time audio communication
+- Enhanced audio quality (echo cancellation, noise suppression, auto gain control)
+- Persistent text chat with localStorage
+- Multiple participants support
+- Modern and clean UI with Tailwind CSS and professional icons
+- **Customizable icons** - easily change any icon in the application
+- Secure token-based authentication
+- Responsive design
+- Built with Next.js 16 and React 19
 
 ## Prerequisites
 
@@ -76,8 +77,24 @@ npm start
 - **Framework**: Next.js 16 (App Router)
 - **UI Library**: React 19
 - **Styling**: Tailwind CSS 4
+- **Icons**: Heroicons (customizable)
 - **Real-time Communication**: LiveKit SDK
 - **Language**: TypeScript
+
+## Customization
+
+### Customizing Icons
+
+All icons in the application can be easily customized. See the [Icon Configuration Guide](config/ICONS.md) for detailed instructions on how to change any icon to match your preferences or brand.
+
+Quick example:
+```typescript
+// Edit config/icons.tsx
+export const icons = {
+  microphone: YourPreferredIcon,  // Change any icon
+  // ...
+};
+```
 
 ## Troubleshooting
 
@@ -122,7 +139,7 @@ Or use a public TURN service like:
 
 ### Audio Not Working
 
-1. Click the "🔊 Click to enable audio playback" button (browser autoplay policy)
+1. Click the "Click to enable audio playback" button (browser autoplay policy)
 2. Grant microphone permissions when prompted
 3. Check your audio output device in the Devices menu
 4. Verify your microphone is selected in the Devices menu
@@ -131,8 +148,8 @@ Or use a public TURN service like:
 ### Participants Can't Hear Each Other
 
 1. Both users must click "Allow" on microphone permission
-2. Both users must click the "🔊 Click to enable audio playback" button
-3. Check that microphone icon is green (🎤) not red (🔇)
+2. Both users must click the "Click to enable audio playback" button
+3. Check that the microphone icon is not showing as muted
 4. Verify correct audio input/output devices are selected
 5. Check the debug info shows "Remote audio tracks: 1" (or more)
 

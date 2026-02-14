@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { icons, iconSizes } from '@/config/icons';
 
 export interface Room {
   id: string;
@@ -199,24 +200,24 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
                     </button>
                     <button
                       onClick={() => handleInvite(room)}
-                      className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors"
+                      className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
                       title="Get invite link"
                     >
-                      📤
+                      <icons.invite className={iconSizes.md} />
                     </button>
                     <button
                       onClick={() => handleEdit(room)}
-                      className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-2 px-3 rounded transition-colors"
+                      className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
                       title="Edit room"
                     >
-                      ✏️
+                      <icons.edit className={iconSizes.md} />
                     </button>
                     <button
                       onClick={() => handleDelete(room.id)}
-                      className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors"
+                      className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
                       title="Delete room"
                     >
-                      🗑️
+                      <icons.delete className={iconSizes.md} />
                     </button>
                   </div>
                 </>
