@@ -269,6 +269,145 @@ function SpeakerToggle() {
   );
 }
 
+function InviteLinkModal({
+  isOpen,
+  onClose,
+  roomName,
+  userName,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  roomName: string;
+  userName: string;
+}) {
+  const [customUserName, setCustomUserName] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  if (!isOpen) return null;
+
+  const generateInviteLink = (user?: string) => {
+    if (typeof window === 'undefined') return '';
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', encodeURIComponent(roomName));
+    if (user) {
+      url.searchParams.set('user', encodeURIComponent(user));
+    }
+    return url.toString();
+  };
+
+  const copyToClipboard = (link: string) => {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch((err) => {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy link to clipboard');
+    });
+  };
+
+  const handleCustomInvite = () => {
+    if (!customUserName.trim()) {
+      alert('Please enter a name for the invite link');
+      return;
+    }
+    const link = generateInviteLink(customUserName);
+    copyToClipboard(link);
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50 z-40"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-2xl border border-gray-700 p-6 z-50 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">📤 Create Invite Link</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* General invite link */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
+              General Invite Link
+            </h4>
+            <p className="text-sm text-gray-400">
+              Share this link to invite anyone to join <span className="text-white font-medium">{roomName}</span>
+            </p>
+            <div className="bg-gray-900 p-3 rounded border border-gray-700">
+              <code className="text-sm text-blue-400 break-all block">
+                {generateInviteLink()}
+              </code>
+            </div>
+            <button
+              onClick={() => copyToClipboard(generateInviteLink())}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+            >
+              {copied ? '✓ Copied!' : 'Copy General Link'}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-700"></div>
+
+          {/* Personalized invite link */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
+              Personalized Invite Link
+            </h4>
+            <p className="text-sm text-gray-400">
+              Create a link with a pre-filled name for a specific person
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Guest Name
+              </label>
+              <input
+                type="text"
+                value={customUserName}
+                onChange={(e) => setCustomUserName(e.target.value)}
+                placeholder="Enter guest name..."
+                className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
+                onKeyDown={(e) => e.key === 'Enter' && handleCustomInvite()}
+              />
+            </div>
+            {customUserName && (
+              <div className="bg-gray-900 p-3 rounded border border-gray-700">
+                <code className="text-sm text-blue-400 break-all block">
+                  {generateInviteLink(customUserName)}
+                </code>
+              </div>
+            )}
+            <button
+              onClick={handleCustomInvite}
+              disabled={!customUserName.trim()}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded transition-colors"
+            >
+              {copied ? '✓ Copied!' : 'Copy Personalized Link'}
+            </button>
+          </div>
+
+          {/* Info note */}
+          <div className="bg-blue-900/20 border border-blue-700/50 rounded p-3">
+            <p className="text-xs text-blue-300">
+              💡 <strong>Tip:</strong> Personalized links automatically fill in the guest's name when they open the link, making it easier for them to join.
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function DeviceSettingsPopup({
   isOpen,
   onClose,
@@ -413,6 +552,9 @@ export default function AudioChat() {
   // Device settings popup
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
 
+  // Invite link modal
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
   useEffect(() => {
     try {
       const savedRoom = localStorage.getItem(STORAGE_KEYS.roomName);
@@ -427,13 +569,19 @@ export default function AudioChat() {
       if (savedNoise !== null) setNoiseSuppression(savedNoise === 'true');
       if (savedGain !== null) setAutoGainControl(savedGain === 'true');
 
-      // Check if there's a room parameter in the URL (for invite links)
+      // Check if there are URL parameters (for invite links)
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
         const roomParam = urlParams.get('room');
+        const userParam = urlParams.get('user');
         if (roomParam) {
-          setRoomName(roomParam);
-          // Clear the URL parameter after reading it
+          setRoomName(decodeURIComponent(roomParam));
+        }
+        if (userParam) {
+          setUserName(decodeURIComponent(userParam));
+        }
+        // Clear the URL parameters after reading them
+        if (roomParam || userParam) {
           window.history.replaceState({}, '', window.location.pathname);
         }
       }
@@ -668,6 +816,14 @@ export default function AudioChat() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setShowInviteModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                title="Create invite link"
+              >
+                <span>📤</span>
+                <span>Invite</span>
+              </button>
+              <button
                 onClick={handleLeaveRoom}
                 className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
                 title="Disconnect and change your name/room"
@@ -814,6 +970,14 @@ export default function AudioChat() {
           setNoiseSuppression={setNoiseSuppression}
           autoGainControl={autoGainControl}
           setAutoGainControl={setAutoGainControl}
+        />
+
+        {/* Invite Link Modal */}
+        <InviteLinkModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          roomName={roomName}
+          userName={userName}
         />
 
         <RoomAudioRenderer />
