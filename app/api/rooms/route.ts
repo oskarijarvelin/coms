@@ -41,10 +41,10 @@ export async function POST(request: NextRequest) {
     const room: Room = existingRoom || {
       id: roomId,
       name,
-      description: description || '',
+      description: description || undefined,
       createdAt: Date.now(),
       lastAccessedAt: Date.now(),
-      createdBy: createdBy || 'Unknown',
+      createdBy: createdBy || undefined,
     };
 
     // Update last accessed time

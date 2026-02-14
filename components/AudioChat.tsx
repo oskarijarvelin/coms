@@ -140,7 +140,7 @@ export default function AudioChat() {
       const room: Room = {
         id: roomId,
         name,
-        description: existingRoomIndex >= 0 ? rooms[existingRoomIndex].description : '',
+        description: existingRoomIndex >= 0 ? rooms[existingRoomIndex].description : undefined,
         createdAt: existingRoomIndex >= 0 ? rooms[existingRoomIndex].createdAt : Date.now(),
         lastAccessedAt: Date.now(),
         createdBy: userName,
