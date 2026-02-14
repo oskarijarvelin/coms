@@ -53,9 +53,10 @@ function ParticipantList() {
 
 function AudioLevelIndicator() {
   const { microphoneTrack } = useLocalParticipant();
-  // Get the actual audio track from the publication
-  const audioTrack = microphoneTrack?.track;
-  const volume = useTrackVolume(audioTrack as any);
+  // Note: Using 'as any' is necessary here due to LiveKit type definitions.
+  // microphoneTrack.track is typed as Track<Kind> but useTrackVolume expects
+  // LocalAudioTrack | RemoteAudioTrack. At runtime, the track is correctly typed.
+  const volume = useTrackVolume(microphoneTrack?.track as any);
   
   // Normalize volume (0-1) to percentage
   const volumePercent = Math.min(100, Math.max(0, volume * 100));
