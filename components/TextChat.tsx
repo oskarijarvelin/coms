@@ -41,7 +41,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
   useEffect(() => {
     if (chatMessages.length > 0) {
       const newMessages: StoredMessage[] = chatMessages.map(msg => ({
-        id: msg.id || `${msg.timestamp}-${msg.from?.identity || 'unknown'}`,
+        id: msg.id || `${msg.timestamp}-${msg.from?.identity || 'unknown'}-${Math.random().toString(36).substring(2, 9)}`,
         timestamp: msg.timestamp,
         message: msg.message,
         fromIdentity: msg.from?.identity || 'Unknown',
@@ -90,7 +90,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
       setInputMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alert('Viestin lähetys epäonnistui. Yritä uudelleen.');
     }
   };
 
@@ -103,7 +103,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
   };
 
   const clearHistory = () => {
-    if (confirm('Haluatko varmasti tyhjentää keskusteluhistorian?')) {
+    if (window.confirm('Haluatko varmasti tyhjentää keskusteluhistorian?')) {
       localStorage.removeItem(storageKey);
       setAllMessages([]);
     }
