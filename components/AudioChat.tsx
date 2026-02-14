@@ -31,6 +31,7 @@ const STORAGE_KEYS = {
 
 function ParticipantList() {
   const participants = useParticipants();
+  const { localParticipant } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
   const audioTracks = useTracks([Track.Source.Microphone]);
   const [showDebug, setShowDebug] = useState(false);
@@ -45,12 +46,12 @@ function ParticipantList() {
         >
           {showDebug ? (
             <>
-              <icons.chevronDown className={iconSizes.xs} />
+              <icons.chevronUp className={iconSizes.xs} />
               Hide Debug
             </>
           ) : (
             <>
-              <icons.chevronUp className={iconSizes.xs} />
+              <icons.chevronDown className={iconSizes.xs} />
               Show Debug
             </>
           )}
@@ -79,7 +80,12 @@ function ParticipantList() {
               }`}
             >
               <div>
-                <p className="font-medium">{participant.identity}</p>
+                <p className="font-medium">
+                  {participant.identity}
+                  {participant.identity === localParticipant?.identity && (
+                    <span className="text-gray-400 ml-2">(You)</span>
+                  )}
+                </p>
               </div>
               <div className="flex gap-2">
                 {participant.isMicrophoneEnabled ? (
@@ -165,6 +171,41 @@ function ConnectionStateMonitor({
       room.off(RoomEvent.Disconnected, handleDisconnect);
     };
   }, [room, onDisconnect]);
+
+  return null;
+}
+
+function LatencyMonitor({ onLatencyChange }: { onLatencyChange: (latency: number | null) => void }) {
+  const { microphoneTrack } = useLocalParticipant();
+
+  useEffect(() => {
+    if (!microphoneTrack?.track) {
+      onLatencyChange(null);
+      return;
+    }
+
+    const updateLatency = async () => {
+      try {
+        const track = microphoneTrack.track as any;
+        if (track.getSenderStats) {
+          const stats = await track.getSenderStats();
+          if (stats && stats.roundTripTime !== undefined) {
+            // Convert to milliseconds and round to 1 decimal
+            const latencyMs = Math.round(stats.roundTripTime * 1000 * 10) / 10;
+            onLatencyChange(latencyMs);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to get latency stats:', error);
+      }
+    };
+
+    // Update every 2 seconds
+    updateLatency();
+    const interval = setInterval(updateLatency, 2000);
+
+    return () => clearInterval(interval);
+  }, [microphoneTrack, onLatencyChange]);
 
   return null;
 }
@@ -437,7 +478,7 @@ function InviteLinkModal({
           {/* Info note */}
           <div className="bg-blue-900/20 border border-blue-700/50 rounded p-3">
             <p className="text-xs text-blue-300 flex items-start gap-2">
-              <icons.info className={iconSizes.sm + ' flex-shrink-0 mt-0.5'} />
+              <icons.info className={iconSizes.sm + ' shrink-0 mt-0.5'} />
               <span>
                 <strong>Tip:</strong> Personalized links automatically fill in the guest's name when they open the link, making it easier for them to join.
               </span>
@@ -590,6 +631,7 @@ export default function AudioChat() {
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
   const [disconnectReason, setDisconnectReason] = useState<string>('');
   const [connectionError, setConnectionError] = useState<string>('');
+  const [latency, setLatency] = useState<number | null>(null);
 
   // Audio processing settings
   const [echoCancellation, setEchoCancellation] = useState(true);
@@ -843,26 +885,23 @@ export default function AudioChat() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <icons.room className={iconSizes.xl + ' text-blue-400'} />
-              <div>
+              <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-white">{roomName}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-sm text-gray-400">Connected as {userName}</p>
-                  {connectionState === ConnectionState.Connected && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
-                      ● Connected
-                    </span>
-                  )}
-                  {connectionState === ConnectionState.Reconnecting && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
-                      ● Reconnecting...
-                    </span>
-                  )}
-                  {connectionState === ConnectionState.Disconnected && disconnectReason && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
-                      ● Disconnected: {disconnectReason}
-                    </span>
-                  )}
-                </div>
+                {connectionState === ConnectionState.Connected && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
+                    ● Connected{latency !== null ? ` (${latency}ms)` : ''}
+                  </span>
+                )}
+                {connectionState === ConnectionState.Reconnecting && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
+                    ● Reconnecting...
+                  </span>
+                )}
+                {connectionState === ConnectionState.Disconnected && disconnectReason && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
+                    ● Disconnected: {disconnectReason}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -873,13 +912,6 @@ export default function AudioChat() {
               >
                 <icons.invite className={iconSizes.sm} />
                 <span>Invite</span>
-              </button>
-              <button
-                onClick={handleLeaveRoom}
-                className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
-                title="Disconnect and change your name/room"
-              >
-                Edit name/room
               </button>
               <button
                 onClick={handleLeaveRoom}
@@ -946,6 +978,7 @@ export default function AudioChat() {
           onDisconnect={handleDisconnect}
           onConnectionError={setConnectionError}
         />
+        <LatencyMonitor onLatencyChange={setLatency} />
         {/* Main Content Area - with padding for fixed header/footer */}
         <div className="flex-1 overflow-y-auto pt-24 pb-28 px-4">
           <div className="max-w-7xl mx-auto">
@@ -953,7 +986,7 @@ export default function AudioChat() {
             {connectionError && (
               <div className="mb-4 bg-red-900 border border-red-700 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <icons.warning className={iconSizes.xl + ' text-red-400 flex-shrink-0'} />
+                  <icons.warning className={iconSizes.xl + ' text-red-400 shrink-0'} />
                   <div className="flex-1">
                     <h3 className="font-semibold text-red-200 mb-2">Connection Error</h3>
                     <p className="text-sm text-red-300 mb-3">{connectionError}</p>
