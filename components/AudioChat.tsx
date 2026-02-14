@@ -1,20 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { LiveKitRoom, RoomAudioRenderer, ControlBar, useParticipants } from '@livekit/components-react';
-import TextChat from './TextChat';
+import { useEffect, useState } from 'react';
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  ControlBar,
+  LayoutContextProvider,
+  useParticipants,
+} from '@livekit/components-react';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
 
+const STORAGE_KEYS = {
+  roomName: 'coms.roomName',
+  userName: 'coms.userName',
+} as const;
+
 function ParticipantList() {
   const participants = useParticipants();
-  
+
   return (
     <div className="mt-8 w-full max-w-md">
       <h2 className="text-xl font-semibold mb-4">Participants ({participants.length})</h2>
       <div className="space-y-2">
         {participants.map((participant) => (
-          <div 
+          <div
             key={participant.identity}
             className="bg-gray-800 rounded-lg p-4 flex items-center justify-between"
           >
@@ -44,6 +54,34 @@ export default function AudioChat() {
   const [token, setToken] = useState('');
   const [isConnected, setIsConnected] = useState(false);
 
+  useEffect(() => {
+    try {
+      const savedRoom = localStorage.getItem(STORAGE_KEYS.roomName);
+      const savedUser = localStorage.getItem(STORAGE_KEYS.userName);
+
+      if (savedRoom) setRoomName(savedRoom);
+      if (savedUser) setUserName(savedUser);
+    } catch {
+      // ignore storage errors (private mode, disabled storage, etc.)
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (roomName) localStorage.setItem(STORAGE_KEYS.roomName, roomName);
+    } catch {
+      // ignore
+    }
+  }, [roomName]);
+
+  useEffect(() => {
+    try {
+      if (userName) localStorage.setItem(STORAGE_KEYS.userName, userName);
+    } catch {
+      // ignore
+    }
+  }, [userName]);
+
   const handleJoinRoom = async () => {
     if (!roomName || !userName) {
       alert('Please enter both room name and your name');
@@ -53,11 +91,11 @@ export default function AudioChat() {
     try {
       // Get token from API
       const response = await fetch(`/api/token?room=${encodeURIComponent(roomName)}&username=${encodeURIComponent(userName)}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to get token');
       }
-      
+
       const data = await response.json();
       setToken(data.token);
       setIsConnected(true);
@@ -79,7 +117,13 @@ export default function AudioChat() {
           <h1 className="text-3xl font-bold text-center mb-8 text-white">
             🎙️ Audio Chat
           </h1>
-          
+
+          {(roomName || userName) && (
+            <p className="text-xs text-gray-400 mb-4">
+              Room + Name are remembered on this device.
+            </p>
+          )}
+
           <div className="space-y-4">
             <div>
               <label htmlFor="userName" className="block text-sm font-medium text-gray-300 mb-2">
@@ -95,7 +139,7 @@ export default function AudioChat() {
                 onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
               />
             </div>
-            
+
             <div>
               <label htmlFor="roomName" className="block text-sm font-medium text-gray-300 mb-2">
                 Room Name
@@ -110,7 +154,7 @@ export default function AudioChat() {
                 onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
               />
             </div>
-            
+
             <button
               onClick={handleJoinRoom}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 mt-6"
@@ -131,14 +175,23 @@ export default function AudioChat() {
             <h1 className="text-3xl font-bold text-white">🎙️ {roomName}</h1>
             <p className="text-gray-400 mt-1">Connected as {userName}</p>
           </div>
-          <button
-            onClick={handleLeaveRoom}
-            className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
-          >
-            Leave Room
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleLeaveRoom}
+              className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+              title="Disconnect and change your name/room"
+            >
+              Edit name/room
+            </button>
+            <button
+              onClick={handleLeaveRoom}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
+            >
+              Leave Room
+            </button>
+          </div>
         </div>
-        
+
         <LiveKitRoom
           token={token}
           serverUrl={LIVEKIT_URL}
@@ -147,22 +200,33 @@ export default function AudioChat() {
           video={false}
           className="livekit-room"
         >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {/* Audio Controls and Participants */}
             <div>
               <div className="bg-gray-800 rounded-lg p-6 mb-4">
-                <ControlBar />
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-semibold text-white">Audio controls</h2>
+                  <p className="text-xs text-gray-400">Mic + device settings</p>
+                </div>
+                <LayoutContextProvider>
+                  <ControlBar
+                    variation="textOnly"
+                    controls={{
+                      microphone: true,
+                      camera: false,
+                      chat: false,
+                      screenShare: false,
+                      leave: false,
+                      settings: true,
+                    }}
+                  />
+                </LayoutContextProvider>
               </div>
-              
+
               <ParticipantList />
             </div>
-            
-            {/* Text Chat */}
-            <div>
-              <TextChat roomName={roomName} userName={userName} />
-            </div>
           </div>
-          
+
           <RoomAudioRenderer />
         </LiveKitRoom>
       </div>

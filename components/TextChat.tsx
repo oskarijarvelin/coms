@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useChat } from '@livekit/components-react';
+import { useConnectionState, useDataChannel as useLivekitDataChannel } from '@livekit/components-react';
+import { ConnectionState } from 'livekit-client';
+
+const CHAT_TOPIC = 'lk.chat' as const;
 
 interface StoredMessage {
   id: string;
@@ -16,12 +19,63 @@ interface TextChatProps {
   userName: string;
 }
 
+function useDataChannel() {
+  const textDecoderRef = useRef<TextDecoder | null>(null);
+  const textEncoderRef = useRef<TextEncoder | null>(null);
+  const [messages, setMessages] = useState<StoredMessage[]>([]);
+
+  const connectionState = useConnectionState();
+  const { send: sendBytes, isSending, message } = useLivekitDataChannel(CHAT_TOPIC);
+
+  useEffect(() => {
+    if (!message) return;
+
+    if (!textDecoderRef.current) {
+      textDecoderRef.current = new TextDecoder();
+    }
+
+    const decoded = textDecoderRef.current.decode(message.payload);
+    const timestamp = Date.now();
+    const fromIdentity = message.from?.identity || 'Unknown';
+    const fromName = message.from?.name || fromIdentity;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `${timestamp}-${fromIdentity}-${Math.random().toString(36).substring(2, 9)}`,
+        timestamp,
+        message: decoded,
+        fromIdentity,
+        fromName,
+      },
+    ]);
+  }, [message]);
+
+  const send = async (payload: string) => {
+    if (
+      connectionState === ConnectionState.Disconnected ||
+      connectionState === ConnectionState.Connecting
+    ) {
+      throw new Error(`Data channel not ready (state: ${connectionState})`);
+    }
+
+    if (!textEncoderRef.current) {
+      textEncoderRef.current = new TextEncoder();
+    }
+
+    const bytes = textEncoderRef.current.encode(payload);
+    await sendBytes(bytes, { reliable: true });
+  };
+
+  return { send, isSending, messages, connectionState } as const;
+}
+
 export default function TextChat({ roomName, userName }: TextChatProps) {
-  const { chatMessages, send, isSending } = useChat();
+  const { send, isSending, messages: chatMessages, connectionState } = useDataChannel();
   const [inputMessage, setInputMessage] = useState('');
   const [allMessages, setAllMessages] = useState<StoredMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   const storageKey = `chat_${roomName}`;
 
   // Load messages from localStorage on mount
@@ -40,34 +94,26 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
   // Update allMessages when new chatMessages arrive
   useEffect(() => {
     if (chatMessages.length > 0) {
-      const newMessages: StoredMessage[] = chatMessages.map(msg => ({
-        id: msg.id || `${msg.timestamp}-${msg.from?.identity || 'unknown'}-${Math.random().toString(36).substring(2, 9)}`,
-        timestamp: msg.timestamp,
-        message: msg.message,
-        fromIdentity: msg.from?.identity || 'Unknown',
-        fromName: msg.from?.name || msg.from?.identity || 'Unknown',
-      }));
-
       setAllMessages(prevMessages => {
         // Merge new messages with existing ones, avoiding duplicates
         const messageMap = new Map<string, StoredMessage>();
-        
+
         // Add existing messages
         prevMessages.forEach(msg => messageMap.set(msg.id, msg));
-        
+
         // Add/update with new messages
-        newMessages.forEach(msg => messageMap.set(msg.id, msg));
-        
+        chatMessages.forEach(msg => messageMap.set(msg.id, msg));
+
         // Convert back to array and sort by timestamp
         const merged = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
-        
+
         // Save to localStorage
         try {
           localStorage.setItem(storageKey, JSON.stringify(merged));
         } catch (error) {
           console.error('Error saving chat history:', error);
         }
-        
+
         return merged;
       });
     }
@@ -80,25 +126,48 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!inputMessage.trim() || isSending) {
       return;
     }
 
     try {
       await send(inputMessage.trim());
+      const timestamp = Date.now();
+
+      setAllMessages(prevMessages => {
+        const next: StoredMessage[] = [
+          ...prevMessages,
+          {
+            id: `${timestamp}-${userName}-${Math.random().toString(36).substring(2, 9)}`,
+            timestamp,
+            message: inputMessage.trim(),
+            fromIdentity: userName,
+            fromName: userName,
+          },
+        ];
+
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(next));
+        } catch (error) {
+          console.error('Error saving chat history:', error);
+        }
+
+        return next;
+      });
       setInputMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Viestin lähetys epäonnistui. Yritä uudelleen.');
+      const details = error instanceof Error ? error.message : String(error);
+      alert(`Viestin lähetys epäonnistui.\n\nSyy: ${details}`);
     }
   };
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('fi-FI', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('fi-FI', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -109,13 +178,20 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
     }
   };
 
+  const canSend =
+    connectionState !== ConnectionState.Disconnected &&
+    connectionState !== ConnectionState.Connecting &&
+    !isSending;
+
   return (
     <div className="flex flex-col h-[500px] bg-gray-800 rounded-lg overflow-hidden">
       {/* Header */}
       <div className="bg-gray-900 p-4 flex justify-between items-center border-b border-gray-700">
         <div>
           <h3 className="text-lg font-semibold text-white">💬 Tekstichat</h3>
-          <p className="text-xs text-gray-400">{allMessages.length} viestiä</p>
+          <p className="text-xs text-gray-400">
+            {allMessages.length} viestiä • {connectionState}
+          </p>
         </div>
         <button
           onClick={clearHistory}
@@ -136,7 +212,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
         ) : (
           allMessages.map((msg) => {
             const isOwnMessage = msg.fromIdentity === userName;
-            
+
             return (
               <div
                 key={msg.id}
@@ -176,12 +252,12 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="Kirjoita viesti..."
-            disabled={isSending}
+            disabled={!canSend}
             className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={!inputMessage.trim() || isSending}
+            disabled={!inputMessage.trim() || !canSend}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-200"
           >
             {isSending ? '📤' : '📨'}
