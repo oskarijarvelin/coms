@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { LiveKitRoom, RoomAudioRenderer, ControlBar, useParticipants } from '@livekit/components-react';
+import TextChat from './TextChat';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
 
@@ -124,7 +125,7 @@ export default function AudioChat() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-4xl">
+      <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-7xl">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-white">🎙️ {roomName}</h1>
@@ -146,11 +147,21 @@ export default function AudioChat() {
           video={false}
           className="livekit-room"
         >
-          <div className="bg-gray-800 rounded-lg p-6 mb-4">
-            <ControlBar />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Audio Controls and Participants */}
+            <div>
+              <div className="bg-gray-800 rounded-lg p-6 mb-4">
+                <ControlBar />
+              </div>
+              
+              <ParticipantList />
+            </div>
+            
+            {/* Text Chat */}
+            <div>
+              <TextChat roomName={roomName} userName={userName} />
+            </div>
           </div>
-          
-          <ParticipantList />
           
           <RoomAudioRenderer />
         </LiveKitRoom>
