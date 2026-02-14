@@ -281,24 +281,30 @@ function InviteLinkModal({
   userName: string;
 }) {
   const [customUserName, setCustomUserName] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copiedGeneral, setCopiedGeneral] = useState(false);
+  const [copiedPersonalized, setCopiedPersonalized] = useState(false);
 
   if (!isOpen) return null;
 
   const generateInviteLink = (user?: string) => {
     if (typeof window === 'undefined') return '';
     const url = new URL(window.location.href);
-    url.searchParams.set('room', encodeURIComponent(roomName));
+    url.searchParams.set('room', roomName);
     if (user) {
-      url.searchParams.set('user', encodeURIComponent(user));
+      url.searchParams.set('user', user);
     }
     return url.toString();
   };
 
-  const copyToClipboard = (link: string) => {
+  const copyToClipboard = (link: string, isPersonalized: boolean) => {
     navigator.clipboard.writeText(link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (isPersonalized) {
+        setCopiedPersonalized(true);
+        setTimeout(() => setCopiedPersonalized(false), 2000);
+      } else {
+        setCopiedGeneral(true);
+        setTimeout(() => setCopiedGeneral(false), 2000);
+      }
     }).catch((err) => {
       console.error('Failed to copy:', err);
       alert('Failed to copy link to clipboard');
@@ -311,7 +317,7 @@ function InviteLinkModal({
       return;
     }
     const link = generateInviteLink(customUserName);
-    copyToClipboard(link);
+    copyToClipboard(link, true);
   };
 
   return (
@@ -349,10 +355,10 @@ function InviteLinkModal({
               </code>
             </div>
             <button
-              onClick={() => copyToClipboard(generateInviteLink())}
+              onClick={() => copyToClipboard(generateInviteLink(), false)}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
             >
-              {copied ? '✓ Copied!' : 'Copy General Link'}
+              {copiedGeneral ? '✓ Copied!' : 'Copy General Link'}
             </button>
           </div>
 
@@ -392,7 +398,7 @@ function InviteLinkModal({
               disabled={!customUserName.trim()}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded transition-colors"
             >
-              {copied ? '✓ Copied!' : 'Copy Personalized Link'}
+              {copiedPersonalized ? '✓ Copied!' : 'Copy Personalized Link'}
             </button>
           </div>
 
@@ -575,10 +581,10 @@ export default function AudioChat() {
         const roomParam = urlParams.get('room');
         const userParam = urlParams.get('user');
         if (roomParam) {
-          setRoomName(decodeURIComponent(roomParam));
+          setRoomName(roomParam);
         }
         if (userParam) {
-          setUserName(decodeURIComponent(userParam));
+          setUserName(userParam);
         }
         // Clear the URL parameters after reading them
         if (roomParam || userParam) {

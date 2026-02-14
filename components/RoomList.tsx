@@ -93,9 +93,9 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
   const getInviteLink = (room: Room) => {
     if (typeof window === 'undefined') return '';
     const url = new URL(window.location.href);
-    url.searchParams.set('room', encodeURIComponent(room.name));
+    url.searchParams.set('room', room.name);
     if (userName) {
-      url.searchParams.set('user', encodeURIComponent(userName));
+      url.searchParams.set('user', userName);
     }
     return url.toString();
   };
