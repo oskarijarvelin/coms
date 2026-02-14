@@ -25,9 +25,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Create an access token
+    // Create an access token with 6 hour expiration
     const at = new AccessToken(apiKey, apiSecret, {
       identity: username,
+      ttl: '6h', // Token valid for 6 hours
     });
 
     // Grant permissions to join the room

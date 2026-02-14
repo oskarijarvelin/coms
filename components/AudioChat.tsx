@@ -10,7 +10,13 @@ import {
   useLocalParticipant,
   useTrackVolume,
   MediaDeviceMenu,
+  StartAudio,
+  useRemoteParticipants,
+  useTracks,
+  useConnectionState,
+  useRoomContext,
 } from '@livekit/components-react';
+import { Track, RoomEvent, DisconnectReason, ConnectionState } from 'livekit-client';
 import RoomList, { Room } from './RoomList';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
@@ -23,31 +29,48 @@ const STORAGE_KEYS = {
 
 function ParticipantList() {
   const participants = useParticipants();
+  const remoteParticipants = useRemoteParticipants();
+  const audioTracks = useTracks([Track.Source.Microphone]);
 
   return (
     <div className="mt-8 w-full max-w-md">
       <h2 className="text-xl font-semibold mb-4">Participants ({participants.length})</h2>
+
+      {/* Debug info */}
+      <div className="bg-gray-700 rounded p-3 mb-4 text-xs">
+        <p className="text-gray-300">Debug info:</p>
+        <p className="text-gray-400">Remote participants: {remoteParticipants.length}</p>
+        <p className="text-gray-400">Audio tracks: {audioTracks.length}</p>
+        <p className="text-gray-400">Remote audio tracks: {audioTracks.filter(t => !t.participant.isLocal).length}</p>
+      </div>
+
       <div className="space-y-2">
-        {participants.map((participant) => (
-          <div
-            key={participant.identity}
-            className="bg-gray-800 rounded-lg p-4 flex items-center justify-between"
-          >
-            <div>
-              <p className="font-medium">{participant.identity}</p>
-              <p className="text-sm text-gray-400">
-                {participant.isSpeaking ? '🎤 Speaking...' : ''}
-              </p>
+        {participants.map((participant) => {
+          const hasAudioTrack = audioTracks.some(t => t.participant.identity === participant.identity);
+
+          return (
+            <div
+              key={participant.identity}
+              className="bg-gray-800 rounded-lg p-4 flex items-center justify-between"
+            >
+              <div>
+                <p className="font-medium">{participant.identity}</p>
+                <p className="text-sm text-gray-400">
+                  {participant.isSpeaking ? '🎤 Speaking...' : ''}
+                  {!participant.isLocal && hasAudioTrack && ' (audio track active)'}
+                  {!participant.isLocal && !hasAudioTrack && ' (no audio track)'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {participant.isMicrophoneEnabled ? (
+                  <span className="text-green-400">🎤</span>
+                ) : (
+                  <span className="text-red-400">🔇</span>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {participant.isMicrophoneEnabled ? (
-                <span className="text-green-400">🎤</span>
-              ) : (
-                <span className="text-red-400">🔇</span>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -59,10 +82,10 @@ function AudioLevelIndicator() {
   // microphoneTrack.track is typed as Track<Kind> but useTrackVolume expects
   // LocalAudioTrack | RemoteAudioTrack. At runtime, the track is correctly typed.
   const volume = useTrackVolume(microphoneTrack?.track as any);
-  
+
   // Normalize volume (0-1) to percentage
   const volumePercent = Math.min(100, Math.max(0, volume * 100));
-  
+
   // Determine color based on volume
   const getVolumeColor = () => {
     if (volumePercent > 60) return 'bg-red-500';
@@ -84,11 +107,56 @@ function AudioLevelIndicator() {
   );
 }
 
+function ConnectionStateMonitor({
+  onStateChange,
+  onDisconnect,
+  onConnectionError
+}: {
+  onStateChange: (state: ConnectionState) => void;
+  onDisconnect: (reason?: DisconnectReason) => void;
+  onConnectionError: (error: string) => void;
+}) {
+  const connectionState = useConnectionState();
+  const room = useRoomContext();
+
+  useEffect(() => {
+    onStateChange(connectionState);
+
+    if (connectionState === ConnectionState.Connected) {
+      console.log('✅ Connected to room:', room.name);
+      // Clear any previous connection errors
+      onConnectionError('');
+    } else if (connectionState === ConnectionState.Reconnecting) {
+      console.log('🔄 Reconnecting to room...');
+    } else if (connectionState === ConnectionState.Disconnected) {
+      console.log('❌ Disconnected from room');
+    }
+  }, [connectionState, onStateChange, onConnectionError, room.name]);
+
+  useEffect(() => {
+    const handleDisconnect = (reason?: DisconnectReason) => {
+      console.log('❌ Room disconnected. Reason:', reason);
+      onDisconnect(reason);
+    };
+
+    room.on(RoomEvent.Disconnected, handleDisconnect);
+
+    return () => {
+      room.off(RoomEvent.Disconnected, handleDisconnect);
+    };
+  }, [room, onDisconnect]);
+
+  return null;
+}
+
 export default function AudioChat() {
   const [roomName, setRoomName] = useState('');
   const [userName, setUserName] = useState('');
   const [token, setToken] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
+  const [disconnectReason, setDisconnectReason] = useState<string>('');
+  const [connectionError, setConnectionError] = useState<string>('');
 
   useEffect(() => {
     try {
@@ -133,10 +201,10 @@ export default function AudioChat() {
     try {
       const storedRooms = localStorage.getItem(STORAGE_KEYS.rooms);
       const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-      
+
       const roomId = name.toLowerCase().replace(/\s+/g, '-');
       const existingRoomIndex = rooms.findIndex(r => r.id === roomId);
-      
+
       const room: Room = {
         id: roomId,
         name,
@@ -160,7 +228,7 @@ export default function AudioChat() {
 
   const handleJoinRoom = async (customRoomName?: string) => {
     const targetRoom = customRoomName || roomName;
-    
+
     if (!targetRoom || !userName) {
       alert('Please enter both room name and your name');
       return;
@@ -175,10 +243,10 @@ export default function AudioChat() {
       }
 
       const data = await response.json();
-      
+
       // Save room to history
       addOrUpdateRoom(targetRoom);
-      
+
       // Update state
       if (customRoomName) {
         setRoomName(customRoomName);
@@ -188,6 +256,29 @@ export default function AudioChat() {
     } catch (error) {
       console.error('Error joining room:', error);
       alert('Failed to join room. Please try again.');
+    }
+  };
+
+  const handleDisconnect = (reason?: DisconnectReason) => {
+    let reasonText = 'Unknown';
+    if (!reason) reasonText = 'Connection lost';
+    else if (reason === DisconnectReason.CLIENT_INITIATED) reasonText = 'You left the room';
+    else if (reason === DisconnectReason.DUPLICATE_IDENTITY) reasonText = 'Duplicate identity (same name joined)';
+    else if (reason === DisconnectReason.SERVER_SHUTDOWN) reasonText = 'Server shutdown';
+    else if (reason === DisconnectReason.PARTICIPANT_REMOVED) reasonText = 'You were removed from the room';
+    else if (reason === DisconnectReason.ROOM_DELETED) reasonText = 'Room was deleted';
+    else if (reason === DisconnectReason.STATE_MISMATCH) reasonText = 'State mismatch';
+    else if (reason === DisconnectReason.JOIN_FAILURE) reasonText = 'Failed to join room';
+    else reasonText = `Code: ${reason}`;
+
+    setDisconnectReason(reasonText);
+
+    // Show alert if disconnect wasn't user-initiated
+    if (reason && reason !== DisconnectReason.CLIENT_INITIATED) {
+      setTimeout(() => {
+        alert(`Disconnected from room: ${reasonText}`);
+        handleLeaveRoom();
+      }, 500);
     }
   };
 
@@ -253,8 +344,8 @@ export default function AudioChat() {
 
           {/* Room List */}
           <div className="flex justify-center">
-            <RoomList 
-              onJoinRoom={handleJoinRoom} 
+            <RoomList
+              onJoinRoom={handleJoinRoom}
               userName={userName}
             />
           </div>
@@ -271,7 +362,24 @@ export default function AudioChat() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-white">🎙️ {roomName}</h1>
-              <p className="text-sm text-gray-400 mt-1">Connected as {userName}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-gray-400">Connected as {userName}</p>
+                {connectionState === ConnectionState.Connected && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
+                    ● Connected
+                  </span>
+                )}
+                {connectionState === ConnectionState.Reconnecting && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
+                    ● Reconnecting...
+                  </span>
+                )}
+                {connectionState === ConnectionState.Disconnected && disconnectReason && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
+                    ● Disconnected: {disconnectReason}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -299,10 +407,79 @@ export default function AudioChat() {
         audio={true}
         video={false}
         className="flex-1 flex flex-col"
+        onConnected={() => {
+          console.log('✅ Initial connection established');
+          setDisconnectReason('');
+          setConnectionError('');
+        }}
+        onDisconnected={(reason?: DisconnectReason) => {
+          console.log('❌ LiveKitRoom onDisconnected:', reason);
+        }}
+        onError={(error: Error) => {
+          console.error('❌ Room error:', error);
+
+          // Check if it's a connection error
+          if (error.message?.includes('could not establish') ||
+              error.message?.includes('pc connection') ||
+              error.message?.includes('ConnectionError')) {
+            setConnectionError('WebRTC connection failed. This is usually caused by network/firewall issues or missing TURN server configuration.');
+
+            // Show user-friendly alert
+            setTimeout(() => {
+              alert(
+                'Connection failed: Could not establish WebRTC connection.\n\n' +
+                'Common causes:\n' +
+                '• Your network/firewall blocks WebRTC traffic\n' +
+                '• The server needs TURN servers configured\n' +
+                '• NAT traversal issues\n\n' +
+                'Try:\n' +
+                '• Using a different network (mobile data, different WiFi)\n' +
+                '• Disabling VPN if active\n' +
+                '• Contact the server administrator about TURN configuration'
+              );
+              handleLeaveRoom();
+            }, 500);
+          } else {
+            setConnectionError(`Connection error: ${error.message}`);
+          }
+        }}
       >
+        <ConnectionStateMonitor
+          onStateChange={setConnectionState}
+          onDisconnect={handleDisconnect}
+          onConnectionError={setConnectionError}
+        />
         {/* Main Content Area - with padding for fixed header/footer */}
         <div className="flex-1 overflow-y-auto pt-24 pb-28 px-4">
           <div className="max-w-7xl mx-auto">
+            {/* Connection Error Alert */}
+            {connectionError && (
+              <div className="mb-4 bg-red-900 border border-red-700 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-red-200 mb-2">Connection Error</h3>
+                    <p className="text-sm text-red-300 mb-3">{connectionError}</p>
+                    <details className="text-xs text-red-200">
+                      <summary className="cursor-pointer hover:underline mb-2">Troubleshooting tips</summary>
+                      <ul className="list-disc pl-5 space-y-1 text-red-300">
+                        <li>Try using a different network (mobile data, different WiFi)</li>
+                        <li>Disable VPN if you're using one</li>
+                        <li>Check if your firewall/antivirus blocks WebRTC</li>
+                        <li>Contact your network administrator</li>
+                        <li>Server admin: Configure TURN servers for LiveKit</li>
+                      </ul>
+                    </details>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Browser Audio Playback Button */}
+            <div className="mb-4 flex justify-center">
+              <StartAudio label="🔊 Click to enable audio playback" />
+            </div>
+
             <ParticipantList />
           </div>
         </div>
@@ -315,7 +492,7 @@ export default function AudioChat() {
               <div className="flex-shrink-0">
                 <AudioLevelIndicator />
               </div>
-              
+
               {/* Audio Controls */}
               <div className="flex-1 flex items-center justify-center gap-4">
                 <LayoutContextProvider>

@@ -78,6 +78,63 @@ npm start
 - **Real-time Communication**: LiveKit SDK
 - **Language**: TypeScript
 
+## Troubleshooting
+
+### "Could not establish pc connection" Error
+
+This WebRTC connection error typically occurs when:
+
+**Common Causes:**
+1. **Missing TURN servers** - Your LiveKit server doesn't have TURN servers configured
+2. **Network/Firewall restrictions** - Your network or firewall blocks WebRTC traffic
+3. **NAT traversal issues** - Direct peer-to-peer connection fails
+
+**Solutions:**
+
+#### For Server Administrators:
+Configure TURN servers in your LiveKit server. Edit `livekit.yaml`:
+
+```yaml
+rtc:
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+  turn_servers:
+    - host: turn.example.com
+      port: 3478
+      protocol: udp
+      username: your_turn_username
+      credential: your_turn_password
+```
+
+Or use a public TURN service like:
+- **Cloudflare TURN** (free tier available)
+- **Twilio TURN** (paid service)
+- **Coturn** (self-hosted open source)
+
+#### For Users:
+- Try connecting from a different network (mobile data, different WiFi)
+- Disable VPN if active
+- Try a different browser (Chrome/Edge usually work best)
+- Check if your firewall/antivirus is blocking WebRTC
+- Contact your network administrator if on corporate network
+
+### Audio Not Working
+
+1. Click the "🔊 Click to enable audio playback" button (browser autoplay policy)
+2. Grant microphone permissions when prompted
+3. Check your audio output device in the Devices menu
+4. Verify your microphone is selected in the Devices menu
+5. Check browser console (F12) for detailed error messages
+
+### Participants Can't Hear Each Other
+
+1. Both users must click "Allow" on microphone permission
+2. Both users must click the "🔊 Click to enable audio playback" button
+3. Check that microphone icon is green (🎤) not red (🔇)
+4. Verify correct audio input/output devices are selected
+5. Check the debug info shows "Remote audio tracks: 1" (or more)
+
 ## Project Structure
 
 ```
