@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       roomJoin: true,
       canPublish: true,
       canSubscribe: true,
+      canPublishData: true,
     });
 
     // Generate the JWT token

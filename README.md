@@ -5,6 +5,7 @@ A simple and modern web-based audio chat tool built with Next.js, Tailwind CSS, 
 ## Features
 
 - 🎙️ Real-time audio communication
+- 💬 Persistent text chat with localStorage
 - 👥 Multiple participants support
 - 🎨 Modern and clean UI with Tailwind CSS
 - 🔒 Secure token-based authentication
@@ -57,8 +58,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 2. Enter a room name (create a new room or join an existing one)
 3. Click "Join Room" to connect
 4. Use the control bar to mute/unmute your microphone
-5. See other participants in the room
-6. Click "Leave Room" to disconnect
+5. Use the text chat panel to send messages to other participants
+6. Chat history is saved locally and persists between sessions
+7. See other participants in the room
+8. Click "Leave Room" to disconnect
 
 ## Building for Production
 
@@ -87,7 +90,8 @@ coms/
 │   ├── layout.tsx                # Root layout
 │   └── page.tsx                  # Home page
 ├── components/
-│   └── AudioChat.tsx             # Main audio chat component
+│   ├── AudioChat.tsx             # Main audio chat component
+│   └── TextChat.tsx              # Text chat component with persistence
 ├── .env.example                  # Environment variables template
 ├── next.config.js                # Next.js configuration
 ├── tailwind.config.ts            # Tailwind CSS configuration
