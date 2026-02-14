@@ -11,12 +11,14 @@ import {
   useTrackVolume,
   MediaDeviceMenu,
 } from '@livekit/components-react';
+import RoomList, { Room } from './RoomList';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
 
 const STORAGE_KEYS = {
   roomName: 'coms.roomName',
   userName: 'coms.userName',
+  rooms: 'coms.rooms',
 } as const;
 
 function ParticipantList() {
@@ -95,6 +97,17 @@ export default function AudioChat() {
 
       if (savedRoom) setRoomName(savedRoom);
       if (savedUser) setUserName(savedUser);
+
+      // Check if there's a room parameter in the URL (for invite links)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if (roomParam) {
+          setRoomName(roomParam);
+          // Clear the URL parameter after reading it
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
     } catch {
       // ignore storage errors (private mode, disabled storage, etc.)
     }
@@ -116,21 +129,60 @@ export default function AudioChat() {
     }
   }, [userName]);
 
-  const handleJoinRoom = async () => {
-    if (!roomName || !userName) {
+  const addOrUpdateRoom = (name: string) => {
+    try {
+      const storedRooms = localStorage.getItem(STORAGE_KEYS.rooms);
+      const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
+      
+      const roomId = name.toLowerCase().replace(/\s+/g, '-');
+      const existingRoomIndex = rooms.findIndex(r => r.id === roomId);
+      
+      const room: Room = {
+        id: roomId,
+        name,
+        description: existingRoomIndex >= 0 ? rooms[existingRoomIndex].description : '',
+        createdAt: existingRoomIndex >= 0 ? rooms[existingRoomIndex].createdAt : Date.now(),
+        lastAccessedAt: Date.now(),
+        createdBy: userName,
+      };
+
+      if (existingRoomIndex >= 0) {
+        rooms[existingRoomIndex] = room;
+      } else {
+        rooms.push(room);
+      }
+
+      localStorage.setItem(STORAGE_KEYS.rooms, JSON.stringify(rooms));
+    } catch (error) {
+      console.error('Error saving room:', error);
+    }
+  };
+
+  const handleJoinRoom = async (customRoomName?: string) => {
+    const targetRoom = customRoomName || roomName;
+    
+    if (!targetRoom || !userName) {
       alert('Please enter both room name and your name');
       return;
     }
 
     try {
       // Get token from API
-      const response = await fetch(`/api/token?room=${encodeURIComponent(roomName)}&username=${encodeURIComponent(userName)}`);
+      const response = await fetch(`/api/token?room=${encodeURIComponent(targetRoom)}&username=${encodeURIComponent(userName)}`);
 
       if (!response.ok) {
         throw new Error('Failed to get token');
       }
 
       const data = await response.json();
+      
+      // Save room to history
+      addOrUpdateRoom(targetRoom);
+      
+      // Update state
+      if (customRoomName) {
+        setRoomName(customRoomName);
+      }
       setToken(data.token);
       setIsConnected(true);
     } catch (error) {
@@ -146,55 +198,65 @@ export default function AudioChat() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <h1 className="text-3xl font-bold text-center mb-8 text-white">
-            🎙️ Audio Chat
-          </h1>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="w-full max-w-2xl">
+          <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 mb-6">
+            <h1 className="text-3xl font-bold text-center mb-8 text-white">
+              🎙️ Audio Chat
+            </h1>
 
-          {(roomName || userName) && (
-            <p className="text-xs text-gray-400 mb-4">
-              Room + Name are remembered on this device.
-            </p>
-          )}
+            {(roomName || userName) && (
+              <p className="text-xs text-gray-400 mb-4 text-center">
+                Room + Name are remembered on this device.
+              </p>
+            )}
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="userName" className="block text-sm font-medium text-gray-300 mb-2">
-                Your Name
-              </label>
-              <input
-                id="userName"
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
-                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
-              />
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="userName" className="block text-sm font-medium text-gray-300 mb-2">
+                  Your Name
+                </label>
+                <input
+                  id="userName"
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="roomName" className="block text-sm font-medium text-gray-300 mb-2">
+                  Room Name
+                </label>
+                <input
+                  id="roomName"
+                  type="text"
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  placeholder="Enter room name or select from below"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                />
+              </div>
+
+              <button
+                onClick={() => handleJoinRoom()}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 mt-6"
+              >
+                Join Room
+              </button>
             </div>
+          </div>
 
-            <div>
-              <label htmlFor="roomName" className="block text-sm font-medium text-gray-300 mb-2">
-                Room Name
-              </label>
-              <input
-                id="roomName"
-                type="text"
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                placeholder="Enter room name"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
-                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
-              />
-            </div>
-
-            <button
-              onClick={handleJoinRoom}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 mt-6"
-            >
-              Join Room
-            </button>
+          {/* Room List */}
+          <div className="flex justify-center">
+            <RoomList 
+              onJoinRoom={handleJoinRoom} 
+              userName={userName}
+            />
           </div>
         </div>
       </div>
