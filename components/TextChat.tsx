@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useConnectionState, useDataChannel as useLivekitDataChannel } from '@livekit/components-react';
 import { ConnectionState } from 'livekit-client';
+import { icons, iconSizes } from '@/config/icons';
 
 const CHAT_TOPIC = 'lk.chat' as const;
 
@@ -187,18 +188,22 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
     <div className="flex flex-col h-[500px] bg-gray-800 rounded-lg overflow-hidden">
       {/* Header */}
       <div className="bg-gray-900 p-4 flex justify-between items-center border-b border-gray-700">
-        <div>
-          <h3 className="text-lg font-semibold text-white">💬 Tekstichat</h3>
-          <p className="text-xs text-gray-400">
-            {allMessages.length} viestiä • {connectionState}
-          </p>
+        <div className="flex items-center gap-2">
+          <icons.chat className={iconSizes.lg + ' text-blue-400'} />
+          <div>
+            <h3 className="text-lg font-semibold text-white">Tekstichat</h3>
+            <p className="text-xs text-gray-400">
+              {allMessages.length} viestiä • {connectionState}
+            </p>
+          </div>
         </div>
         <button
           onClick={clearHistory}
-          className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-400 transition-colors"
           title="Tyhjennä historia"
         >
-          🗑️ Tyhjennä
+          <icons.delete className={iconSizes.sm} />
+          Tyhjennä
         </button>
       </div>
 
@@ -258,9 +263,9 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
           <button
             type="submit"
             disabled={!inputMessage.trim() || !canSend}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-200"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-200 flex items-center justify-center"
           >
-            {isSending ? '📤' : '📨'}
+            <icons.send className={iconSizes.md} />
           </button>
         </div>
       </form>

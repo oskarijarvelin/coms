@@ -16,6 +16,7 @@ import {
 } from '@livekit/components-react';
 import { Track, RoomEvent, DisconnectReason, ConnectionState } from 'livekit-client';
 import RoomList, { Room } from './RoomList';
+import { icons, iconSizes } from '@/config/icons';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
 
@@ -40,9 +41,19 @@ function ParticipantList() {
         <h2 className="text-xl font-semibold">Participants ({participants.length})</h2>
         <button
           onClick={() => setShowDebug(!showDebug)}
-          className="text-xs text-gray-400 hover:text-gray-200 transition-colors px-2 py-1 rounded hover:bg-gray-700"
+          className="text-xs text-gray-400 hover:text-gray-200 transition-colors px-2 py-1 rounded hover:bg-gray-700 flex items-center gap-1"
         >
-          {showDebug ? '🔽 Hide Debug' : '🔼 Show Debug'}
+          {showDebug ? (
+            <>
+              <icons.chevronDown className={iconSizes.xs} />
+              Hide Debug
+            </>
+          ) : (
+            <>
+              <icons.chevronUp className={iconSizes.xs} />
+              Show Debug
+            </>
+          )}
         </button>
       </div>
 
@@ -72,9 +83,9 @@ function ParticipantList() {
               </div>
               <div className="flex gap-2">
                 {participant.isMicrophoneEnabled ? (
-                  <span className="text-green-400">🎤</span>
+                  <icons.microphone className={iconSizes.lg + ' text-green-400'} />
                 ) : (
-                  <span className="text-red-400">🔇</span>
+                  <icons.microphoneMuted className={iconSizes.lg + ' text-red-400'} />
                 )}
               </div>
             </div>
@@ -186,9 +197,11 @@ function MicrophoneToggle() {
       } disabled:opacity-50 disabled:cursor-not-allowed`}
       title={isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
     >
-      <span className="text-2xl">
-        🎤
-      </span>
+      {isMicrophoneEnabled ? (
+        <icons.microphone className={iconSizes['2xl'] + ' text-white'} />
+      ) : (
+        <icons.microphoneMuted className={iconSizes['2xl'] + ' text-white'} />
+      )}
     </button>
   );
 }
@@ -262,9 +275,11 @@ function SpeakerToggle() {
       } disabled:opacity-50 disabled:cursor-not-allowed`}
       title={isSpeakerEnabled ? 'Mute speaker' : 'Unmute speaker'}
     >
-      <span className="text-2xl">
-        🔊
-      </span>
+      {isSpeakerEnabled ? (
+        <icons.speaker className={iconSizes['2xl'] + ' text-white'} />
+      ) : (
+        <icons.microphoneMuted className={iconSizes['2xl'] + ' text-white'} />
+      )}
     </button>
   );
 }
@@ -331,12 +346,15 @@ function InviteLinkModal({
       {/* Modal */}
       <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg shadow-2xl border border-gray-700 p-6 z-50 w-full max-w-lg max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-white">📤 Create Invite Link</h3>
+          <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+            <icons.invite className={iconSizes.lg} />
+            Create Invite Link
+          </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
+            className="text-gray-400 hover:text-white transition-colors"
           >
-            ✕
+            <icons.close className={iconSizes.lg} />
           </button>
         </div>
 
@@ -356,9 +374,16 @@ function InviteLinkModal({
             </div>
             <button
               onClick={() => copyToClipboard(generateInviteLink(), false)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
             >
-              {copiedGeneral ? '✓ Copied!' : 'Copy General Link'}
+              {copiedGeneral ? (
+                <>
+                  <icons.check className={iconSizes.md} />
+                  Copied!
+                </>
+              ) : (
+                'Copy General Link'
+              )}
             </button>
           </div>
 
@@ -396,16 +421,26 @@ function InviteLinkModal({
             <button
               onClick={handleCustomInvite}
               disabled={!customUserName.trim()}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded transition-colors"
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
             >
-              {copiedPersonalized ? '✓ Copied!' : 'Copy Personalized Link'}
+              {copiedPersonalized ? (
+                <>
+                  <icons.check className={iconSizes.md} />
+                  Copied!
+                </>
+              ) : (
+                'Copy Personalized Link'
+              )}
             </button>
           </div>
 
           {/* Info note */}
           <div className="bg-blue-900/20 border border-blue-700/50 rounded p-3">
-            <p className="text-xs text-blue-300">
-              💡 <strong>Tip:</strong> Personalized links automatically fill in the guest's name when they open the link, making it easier for them to join.
+            <p className="text-xs text-blue-300 flex items-start gap-2">
+              <icons.info className={iconSizes.sm + ' flex-shrink-0 mt-0.5'} />
+              <span>
+                <strong>Tip:</strong> Personalized links automatically fill in the guest's name when they open the link, making it easier for them to join.
+              </span>
             </p>
           </div>
         </div>
@@ -451,14 +486,17 @@ function DeviceSettingsPopup({
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
           >
-            ✕
+            <icons.close className={iconSizes.lg} />
           </button>
         </div>
 
         <div className="space-y-6">
           {/* Device Settings Section */}
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">🎵 Devices</h4>
+            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide flex items-center gap-2">
+              <icons.audioDevice className={iconSizes.md} />
+              Devices
+            </h4>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Microphone
@@ -480,7 +518,10 @@ function DeviceSettingsPopup({
           {/* Audio Processing Section */}
           <div className="space-y-4">
             <div>
-              <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide mb-2">🎧 Audio Processing</h4>
+              <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide mb-2 flex items-center gap-2">
+                <icons.audioProcessing className={iconSizes.md} />
+                Audio Processing
+              </h4>
               <p className="text-xs text-gray-400 mb-3">These settings require reconnection to take effect</p>
             </div>
 
@@ -731,8 +772,9 @@ export default function AudioChat() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-gray-900 via-gray-800 to-gray-900">
         <div className="w-full max-w-2xl">
           <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 mb-6">
-            <h1 className="text-3xl font-bold text-center mb-8 text-white">
-              🎙️ Audio Chat
+            <h1 className="text-3xl font-bold text-center mb-8 text-white flex items-center justify-center gap-3">
+              <icons.room className={iconSizes.xl} />
+              Audio Chat
             </h1>
 
             {(roomName || userName) && (
@@ -799,25 +841,28 @@ export default function AudioChat() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-white">🎙️ {roomName}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm text-gray-400">Connected as {userName}</p>
-                {connectionState === ConnectionState.Connected && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
-                    ● Connected
-                  </span>
-                )}
-                {connectionState === ConnectionState.Reconnecting && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
-                    ● Reconnecting...
-                  </span>
-                )}
-                {connectionState === ConnectionState.Disconnected && disconnectReason && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
-                    ● Disconnected: {disconnectReason}
-                  </span>
-                )}
+            <div className="flex items-center gap-3">
+              <icons.room className={iconSizes.xl + ' text-blue-400'} />
+              <div>
+                <h1 className="text-2xl font-bold text-white">{roomName}</h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-gray-400">Connected as {userName}</p>
+                  {connectionState === ConnectionState.Connected && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
+                      ● Connected
+                    </span>
+                  )}
+                  {connectionState === ConnectionState.Reconnecting && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
+                      ● Reconnecting...
+                    </span>
+                  )}
+                  {connectionState === ConnectionState.Disconnected && disconnectReason && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
+                      ● Disconnected: {disconnectReason}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -826,7 +871,7 @@ export default function AudioChat() {
                 className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
                 title="Create invite link"
               >
-                <span>📤</span>
+                <icons.invite className={iconSizes.sm} />
                 <span>Invite</span>
               </button>
               <button
@@ -908,7 +953,7 @@ export default function AudioChat() {
             {connectionError && (
               <div className="mb-4 bg-red-900 border border-red-700 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">⚠️</span>
+                  <icons.warning className={iconSizes.xl + ' text-red-400 flex-shrink-0'} />
                   <div className="flex-1">
                     <h3 className="font-semibold text-red-200 mb-2">Connection Error</h3>
                     <p className="text-sm text-red-300 mb-3">{connectionError}</p>
@@ -929,7 +974,12 @@ export default function AudioChat() {
 
             {/* Browser Audio Playback Button */}
             <div className="mb-4 flex justify-center">
-              <StartAudio label="🔊 Click to enable audio playback" />
+              <StartAudio label={
+                <span className="flex items-center gap-2">
+                  <icons.speaker className={iconSizes.md} />
+                  Click to enable audio playback
+                </span>
+              } />
             </div>
 
             <ParticipantList />
@@ -958,7 +1008,7 @@ export default function AudioChat() {
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm font-medium text-gray-200 hover:text-white flex items-center gap-2"
                   title="Audio Settings"
                 >
-                  <span>⚙️</span>
+                  <icons.settings className={iconSizes.md} />
                   <span className="hidden sm:inline">Settings</span>
                 </button>
               </div>
