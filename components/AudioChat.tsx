@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  ControlBar,
-  LayoutContextProvider,
   useParticipants,
   useLocalParticipant,
   useTrackVolume,
@@ -25,41 +23,52 @@ const STORAGE_KEYS = {
   roomName: 'coms.roomName',
   userName: 'coms.userName',
   rooms: 'coms.rooms',
+  echoCancellation: 'coms.echoCancellation',
+  noiseSuppression: 'coms.noiseSuppression',
+  autoGainControl: 'coms.autoGainControl',
 } as const;
 
 function ParticipantList() {
   const participants = useParticipants();
   const remoteParticipants = useRemoteParticipants();
   const audioTracks = useTracks([Track.Source.Microphone]);
+  const [showDebug, setShowDebug] = useState(false);
 
   return (
     <div className="mt-8 w-full max-w-md">
-      <h2 className="text-xl font-semibold mb-4">Participants ({participants.length})</h2>
-
-      {/* Debug info */}
-      <div className="bg-gray-700 rounded p-3 mb-4 text-xs">
-        <p className="text-gray-300">Debug info:</p>
-        <p className="text-gray-400">Remote participants: {remoteParticipants.length}</p>
-        <p className="text-gray-400">Audio tracks: {audioTracks.length}</p>
-        <p className="text-gray-400">Remote audio tracks: {audioTracks.filter(t => !t.participant.isLocal).length}</p>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">Participants ({participants.length})</h2>
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          className="text-xs text-gray-400 hover:text-gray-200 transition-colors px-2 py-1 rounded hover:bg-gray-700"
+        >
+          {showDebug ? '🔽 Hide Debug' : '🔼 Show Debug'}
+        </button>
       </div>
+
+      {/* Debug info - collapsible */}
+      {showDebug && (
+        <div className="bg-gray-700 rounded p-3 mb-4 text-xs">
+          <p className="text-gray-300 font-semibold mb-1">Debug info:</p>
+          <p className="text-gray-400">Remote participants: {remoteParticipants.length}</p>
+          <p className="text-gray-400">Audio tracks: {audioTracks.length}</p>
+          <p className="text-gray-400">Remote audio tracks: {audioTracks.filter(t => !t.participant.isLocal).length}</p>
+        </div>
+      )}
 
       <div className="space-y-2">
         {participants.map((participant) => {
-          const hasAudioTrack = audioTracks.some(t => t.participant.identity === participant.identity);
-
           return (
             <div
               key={participant.identity}
-              className="bg-gray-800 rounded-lg p-4 flex items-center justify-between"
+              className={`rounded-lg p-4 flex items-center justify-between transition-all duration-200 ${
+                participant.isSpeaking
+                  ? 'bg-gray-800 border-2 border-green-400 shadow-lg shadow-green-400/20'
+                  : 'bg-gray-800 border-2 border-transparent'
+              }`}
             >
               <div>
                 <p className="font-medium">{participant.identity}</p>
-                <p className="text-sm text-gray-400">
-                  {participant.isSpeaking ? '🎤 Speaking...' : ''}
-                  {!participant.isLocal && hasAudioTrack && ' (audio track active)'}
-                  {!participant.isLocal && !hasAudioTrack && ' (no audio track)'}
-                </p>
               </div>
               <div className="flex gap-2">
                 {participant.isMicrophoneEnabled ? (
@@ -149,6 +158,244 @@ function ConnectionStateMonitor({
   return null;
 }
 
+function MicrophoneToggle() {
+  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const toggleMicrophone = async () => {
+    if (!localParticipant || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+    } catch (error) {
+      console.error('Failed to toggle microphone:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={toggleMicrophone}
+      disabled={isLoading}
+      className={`relative p-4 rounded-full transition-all duration-200 ${
+        isMicrophoneEnabled
+          ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
+          : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
+      } disabled:opacity-50 disabled:cursor-not-allowed`}
+      title={isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+    >
+      <span className="text-2xl">
+        🎤
+      </span>
+    </button>
+  );
+}
+
+function SpeakerToggle() {
+  const room = useRoomContext();
+  const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load saved state on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('coms.speakerEnabled');
+      if (saved !== null) {
+        setIsSpeakerEnabled(saved === 'true');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Apply speaker state to all audio elements whenever it changes
+  useEffect(() => {
+    if (!room) return;
+
+    const applyAudioState = () => {
+      // Find all audio elements in the DOM and set their volume
+      const audioElements = document.querySelectorAll('audio');
+      audioElements.forEach((audio) => {
+        audio.volume = isSpeakerEnabled ? 1 : 0;
+      });
+    };
+
+    // Apply immediately
+    applyAudioState();
+
+    // Also apply when new participants join or tracks are added
+    const interval = setInterval(applyAudioState, 1000);
+    return () => clearInterval(interval);
+  }, [room, isSpeakerEnabled]);
+
+  const toggleSpeaker = async () => {
+    if (isLoading) return;
+
+    setIsLoading(true);
+    try {
+      const newState = !isSpeakerEnabled;
+      setIsSpeakerEnabled(newState);
+      localStorage.setItem('coms.speakerEnabled', String(newState));
+
+      // Apply immediately to all audio elements
+      const audioElements = document.querySelectorAll('audio');
+      audioElements.forEach((audio) => {
+        audio.volume = newState ? 1 : 0;
+      });
+    } catch (error) {
+      console.error('Failed to toggle speaker:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={toggleSpeaker}
+      disabled={isLoading}
+      className={`relative p-4 rounded-full transition-all duration-200 ${
+        isSpeakerEnabled
+          ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
+          : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
+      } disabled:opacity-50 disabled:cursor-not-allowed`}
+      title={isSpeakerEnabled ? 'Mute speaker' : 'Unmute speaker'}
+    >
+      <span className="text-2xl">
+        🔊
+      </span>
+    </button>
+  );
+}
+
+function DeviceSettingsPopup({
+  isOpen,
+  onClose,
+  echoCancellation,
+  setEchoCancellation,
+  noiseSuppression,
+  setNoiseSuppression,
+  autoGainControl,
+  setAutoGainControl,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  echoCancellation: boolean;
+  setEchoCancellation: (value: boolean) => void;
+  noiseSuppression: boolean;
+  setNoiseSuppression: (value: boolean) => void;
+  autoGainControl: boolean;
+  setAutoGainControl: (value: boolean) => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50 z-40"
+        onClick={onClose}
+      />
+
+      {/* Popup */}
+      <div className="fixed bottom-24 right-4 bg-gray-800 rounded-lg shadow-2xl border border-gray-700 p-6 z-50 w-80 max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Audio Settings</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Device Settings Section */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">🎵 Devices</h4>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Microphone
+              </label>
+              <MediaDeviceMenu kind="audioinput" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Speaker
+              </label>
+              <MediaDeviceMenu kind="audiooutput" />
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-700"></div>
+
+          {/* Audio Processing Section */}
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide mb-2">🎧 Audio Processing</h4>
+              <p className="text-xs text-gray-400 mb-3">These settings require reconnection to take effect</p>
+            </div>
+
+            <label className="flex items-center justify-between cursor-pointer group p-2 rounded hover:bg-gray-700/50 transition-colors">
+              <div className="flex-1">
+                <span className="text-sm text-gray-200 group-hover:text-white transition-colors block">
+                  Echo Cancellation
+                </span>
+                <span className="text-xs text-gray-400">
+                  Removes echo and feedback
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={echoCancellation}
+                onChange={(e) => setEchoCancellation(e.target.checked)}
+                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+              />
+            </label>
+
+            <label className="flex items-center justify-between cursor-pointer group p-2 rounded hover:bg-gray-700/50 transition-colors">
+              <div className="flex-1">
+                <span className="text-sm text-gray-200 group-hover:text-white transition-colors block">
+                  Noise Suppression
+                </span>
+                <span className="text-xs text-gray-400">
+                  Reduces background noise
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={noiseSuppression}
+                onChange={(e) => setNoiseSuppression(e.target.checked)}
+                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+              />
+            </label>
+
+            <label className="flex items-center justify-between cursor-pointer group p-2 rounded hover:bg-gray-700/50 transition-colors">
+              <div className="flex-1">
+                <span className="text-sm text-gray-200 group-hover:text-white transition-colors block">
+                  Auto Gain Control
+                </span>
+                <span className="text-xs text-gray-400">
+                  Normalizes volume levels
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={autoGainControl}
+                onChange={(e) => setAutoGainControl(e.target.checked)}
+                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function AudioChat() {
   const [roomName, setRoomName] = useState('');
   const [userName, setUserName] = useState('');
@@ -158,13 +405,27 @@ export default function AudioChat() {
   const [disconnectReason, setDisconnectReason] = useState<string>('');
   const [connectionError, setConnectionError] = useState<string>('');
 
+  // Audio processing settings
+  const [echoCancellation, setEchoCancellation] = useState(true);
+  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [autoGainControl, setAutoGainControl] = useState(true);
+
+  // Device settings popup
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+
   useEffect(() => {
     try {
       const savedRoom = localStorage.getItem(STORAGE_KEYS.roomName);
       const savedUser = localStorage.getItem(STORAGE_KEYS.userName);
+      const savedEcho = localStorage.getItem(STORAGE_KEYS.echoCancellation);
+      const savedNoise = localStorage.getItem(STORAGE_KEYS.noiseSuppression);
+      const savedGain = localStorage.getItem(STORAGE_KEYS.autoGainControl);
 
       if (savedRoom) setRoomName(savedRoom);
       if (savedUser) setUserName(savedUser);
+      if (savedEcho !== null) setEchoCancellation(savedEcho === 'true');
+      if (savedNoise !== null) setNoiseSuppression(savedNoise === 'true');
+      if (savedGain !== null) setAutoGainControl(savedGain === 'true');
 
       // Check if there's a room parameter in the URL (for invite links)
       if (typeof window !== 'undefined') {
@@ -196,6 +457,30 @@ export default function AudioChat() {
       // ignore
     }
   }, [userName]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.echoCancellation, String(echoCancellation));
+    } catch {
+      // ignore
+    }
+  }, [echoCancellation]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.noiseSuppression, String(noiseSuppression));
+    } catch {
+      // ignore
+    }
+  }, [noiseSuppression]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.autoGainControl, String(autoGainControl));
+    } catch {
+      // ignore
+    }
+  }, [autoGainControl]);
 
   const addOrUpdateRoom = (name: string) => {
     try {
@@ -289,7 +574,7 @@ export default function AudioChat() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-gray-900 via-gray-800 to-gray-900">
         <div className="w-full max-w-2xl">
           <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 mb-6">
             <h1 className="text-3xl font-bold text-center mb-8 text-white">
@@ -355,7 +640,7 @@ export default function AudioChat() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="h-screen flex flex-col bg-linear-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Fixed Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -404,7 +689,12 @@ export default function AudioChat() {
         token={token}
         serverUrl={LIVEKIT_URL}
         connect={true}
-        audio={true}
+        audio={{
+          // Browser's native audio processing for better quality
+          echoCancellation,    // Removes echo/feedback
+          noiseSuppression,    // Reduces background noise
+          autoGainControl,     // Normalizes volume levels
+        }}
         video={false}
         className="flex-1 flex flex-col"
         onConnected={() => {
@@ -489,36 +779,42 @@ export default function AudioChat() {
           <div className="max-w-7xl mx-auto px-4 py-4">
             <div className="flex items-center justify-between gap-4">
               {/* Audio Level Indicator */}
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <AudioLevelIndicator />
               </div>
 
-              {/* Audio Controls */}
+              {/* Audio Controls - Center */}
               <div className="flex-1 flex items-center justify-center gap-4">
-                <LayoutContextProvider>
-                  <ControlBar
-                    variation="minimal"
-                    controls={{
-                      microphone: true,
-                      camera: false,
-                      chat: false,
-                      screenShare: false,
-                      leave: false,
-                      settings: false,
-                    }}
-                  />
-                </LayoutContextProvider>
+                <MicrophoneToggle />
+                <SpeakerToggle />
               </div>
 
-              {/* Device Settings */}
-              <div className="flex-shrink-0 flex items-center gap-2">
-                <span className="text-xs text-gray-400 hidden sm:inline">Devices:</span>
-                <MediaDeviceMenu kind="audioinput" />
-                <MediaDeviceMenu kind="audiooutput" />
+              {/* Audio Settings Button */}
+              <div className="shrink-0">
+                <button
+                  onClick={() => setShowDeviceSettings(!showDeviceSettings)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm font-medium text-gray-200 hover:text-white flex items-center gap-2"
+                  title="Audio Settings"
+                >
+                  <span>⚙️</span>
+                  <span className="hidden sm:inline">Settings</span>
+                </button>
               </div>
             </div>
           </div>
         </footer>
+
+        {/* Audio Settings Popup */}
+        <DeviceSettingsPopup
+          isOpen={showDeviceSettings}
+          onClose={() => setShowDeviceSettings(false)}
+          echoCancellation={echoCancellation}
+          setEchoCancellation={setEchoCancellation}
+          noiseSuppression={noiseSuppression}
+          setNoiseSuppression={setNoiseSuppression}
+          autoGainControl={autoGainControl}
+          setAutoGainControl={setAutoGainControl}
+        />
 
         <RoomAudioRenderer />
       </LiveKitRoom>

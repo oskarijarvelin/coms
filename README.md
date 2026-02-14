@@ -5,6 +5,7 @@ A simple and modern web-based audio chat tool built with Next.js, Tailwind CSS, 
 ## Features
 
 - 🎙️ Real-time audio communication
+- 🎧 Enhanced audio quality (echo cancellation, noise suppression, auto gain control)
 - 💬 Persistent text chat with localStorage
 - 👥 Multiple participants support
 - 🎨 Modern and clean UI with Tailwind CSS
