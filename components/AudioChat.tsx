@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { LiveKitRoom, RoomAudioRenderer, ControlBar, useParticipants } from '@livekit/components-react';
-import '@livekit/components-styles';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
 
@@ -92,7 +91,7 @@ export default function AudioChat() {
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="Enter your name"
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
+                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
               />
             </div>
             
@@ -107,7 +106,7 @@ export default function AudioChat() {
                 onChange={(e) => setRoomName(e.target.value)}
                 placeholder="Enter room name"
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
+                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
               />
             </div>
             
