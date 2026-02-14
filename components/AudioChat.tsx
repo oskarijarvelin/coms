@@ -7,6 +7,9 @@ import {
   ControlBar,
   LayoutContextProvider,
   useParticipants,
+  useLocalParticipant,
+  useTrackVolume,
+  MediaDeviceMenu,
 } from '@livekit/components-react';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
@@ -43,6 +46,36 @@ function ParticipantList() {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function AudioLevelIndicator() {
+  const { microphoneTrack } = useLocalParticipant();
+  // Get the actual audio track from the publication
+  const audioTrack = microphoneTrack?.track;
+  const volume = useTrackVolume(audioTrack as any);
+  
+  // Normalize volume (0-1) to percentage
+  const volumePercent = Math.min(100, Math.max(0, volume * 100));
+  
+  // Determine color based on volume
+  const getVolumeColor = () => {
+    if (volumePercent > 60) return 'bg-red-500';
+    if (volumePercent > 30) return 'bg-yellow-500';
+    if (volumePercent > 5) return 'bg-green-500';
+    return 'bg-gray-600';
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-400">Mic:</span>
+      <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div
+          className={`h-full transition-all duration-100 ${getVolumeColor()}`}
+          style={{ width: `${volumePercent}%` }}
+        />
       </div>
     </div>
   );
@@ -168,68 +201,87 @@ export default function AudioChat() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-7xl">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-white">🎙️ {roomName}</h1>
-            <p className="text-gray-400 mt-1">Connected as {userName}</p>
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Fixed Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-700 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-white">🎙️ {roomName}</h1>
+              <p className="text-sm text-gray-400 mt-1">Connected as {userName}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLeaveRoom}
+                className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+                title="Disconnect and change your name/room"
+              >
+                Edit name/room
+              </button>
+              <button
+                onClick={handleLeaveRoom}
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                Leave Room
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleLeaveRoom}
-              className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
-              title="Disconnect and change your name/room"
-            >
-              Edit name/room
-            </button>
-            <button
-              onClick={handleLeaveRoom}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
-            >
-              Leave Room
-            </button>
+        </div>
+      </header>
+
+      <LiveKitRoom
+        token={token}
+        serverUrl={LIVEKIT_URL}
+        connect={true}
+        audio={true}
+        video={false}
+        className="flex-1 flex flex-col"
+      >
+        {/* Main Content Area - with padding for fixed header/footer */}
+        <div className="flex-1 overflow-y-auto pt-24 pb-28 px-4">
+          <div className="max-w-7xl mx-auto">
+            <ParticipantList />
           </div>
         </div>
 
-        <LiveKitRoom
-          token={token}
-          serverUrl={LIVEKIT_URL}
-          connect={true}
-          audio={true}
-          video={false}
-          className="livekit-room"
-        >
-          <div className="grid grid-cols-1 gap-6">
-            {/* Audio Controls and Participants */}
-            <div>
-              <div className="bg-gray-800 rounded-lg p-6 mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-white">Audio controls</h2>
-                  <p className="text-xs text-gray-400">Mic + device settings</p>
-                </div>
+        {/* Fixed Footer with Controls */}
+        <footer className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-700 shadow-lg">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="flex items-center justify-between gap-4">
+              {/* Audio Level Indicator */}
+              <div className="flex-shrink-0">
+                <AudioLevelIndicator />
+              </div>
+              
+              {/* Audio Controls */}
+              <div className="flex-1 flex items-center justify-center gap-4">
                 <LayoutContextProvider>
                   <ControlBar
-                    variation="textOnly"
+                    variation="minimal"
                     controls={{
                       microphone: true,
                       camera: false,
                       chat: false,
                       screenShare: false,
                       leave: false,
-                      settings: true,
+                      settings: false,
                     }}
                   />
                 </LayoutContextProvider>
               </div>
 
-              <ParticipantList />
+              {/* Device Settings */}
+              <div className="flex-shrink-0 flex items-center gap-2">
+                <span className="text-xs text-gray-400 hidden sm:inline">Devices:</span>
+                <MediaDeviceMenu kind="audioinput" />
+                <MediaDeviceMenu kind="audiooutput" />
+              </div>
             </div>
           </div>
+        </footer>
 
-          <RoomAudioRenderer />
-        </LiveKitRoom>
-      </div>
+        <RoomAudioRenderer />
+      </LiveKitRoom>
     </div>
   );
 }
