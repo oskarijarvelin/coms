@@ -278,7 +278,7 @@ function SpeakerToggle() {
       {isSpeakerEnabled ? (
         <icons.speaker className={iconSizes['2xl'] + ' text-white'} />
       ) : (
-        <icons.microphoneMuted className={iconSizes['2xl'] + ' text-white'} />
+        <icons.speakerMuted className={iconSizes['2xl'] + ' text-white'} />
       )}
     </button>
   );

@@ -31,6 +31,7 @@ import {
   CheckIcon,
   XMarkIcon,
   MusicalNoteIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -44,8 +45,9 @@ import {
 export const icons = {
   // Audio controls
   microphone: MicrophoneIcon,           // Active microphone
-  microphoneMuted: SpeakerXMarkIcon,    // Muted microphone
+  microphoneMuted: NoSymbolIcon,        // Muted microphone
   speaker: SpeakerWaveIcon,             // Speaker/audio output
+  speakerMuted: SpeakerXMarkIcon,       // Muted speaker
   
   // UI controls
   settings: CogIcon,                    // Settings/configuration
