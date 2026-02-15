@@ -16,6 +16,7 @@ import {
 } from '@livekit/components-react';
 import { Track, RoomEvent, DisconnectReason, ConnectionState } from 'livekit-client';
 import RoomList, { Room } from './RoomList';
+import TextChat from './TextChat';
 import { icons, iconSizes } from '@/config/icons';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
@@ -37,7 +38,7 @@ function ParticipantList() {
   const [showDebug, setShowDebug] = useState(false);
 
   return (
-    <div className="mt-8 w-full max-w-md">
+    <div className="w-full max-w-md">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">Participants ({participants.length})</h2>
         <button
@@ -240,7 +241,7 @@ function MicrophoneToggle() {
     <button
       onClick={toggleMicrophone}
       disabled={isLoading}
-      className={`relative p-4 rounded-full transition-all duration-200 ${
+      className={`relative p-3 md:p-4 rounded-full transition-all duration-200 ${
         isMicrophoneEnabled
           ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
           : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
@@ -248,9 +249,9 @@ function MicrophoneToggle() {
       title={isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
     >
       {isMicrophoneEnabled ? (
-        <icons.microphone className={iconSizes['2xl'] + ' text-white'} />
+        <icons.microphone className="w-8 h-8 md:w-10 md:h-10 text-white" />
       ) : (
-        <icons.microphoneMuted className={iconSizes['2xl'] + ' text-white'} />
+        <icons.microphoneMuted className="w-8 h-8 md:w-10 md:h-10 text-white" />
       )}
     </button>
   );
@@ -318,7 +319,7 @@ function SpeakerToggle() {
     <button
       onClick={toggleSpeaker}
       disabled={isLoading}
-      className={`relative p-4 rounded-full transition-all duration-200 ${
+      className={`relative p-3 md:p-4 rounded-full transition-all duration-200 ${
         isSpeakerEnabled
           ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
           : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
@@ -326,9 +327,9 @@ function SpeakerToggle() {
       title={isSpeakerEnabled ? 'Mute speaker' : 'Unmute speaker'}
     >
       {isSpeakerEnabled ? (
-        <icons.speaker className={iconSizes['2xl'] + ' text-white'} />
+        <icons.speaker className="w-8 h-8 md:w-10 md:h-10 text-white" />
       ) : (
-        <icons.speakerMuted className={iconSizes['2xl'] + ' text-white'} />
+        <icons.speakerMuted className="w-8 h-8 md:w-10 md:h-10 text-white" />
       )}
     </button>
   );
@@ -897,18 +898,21 @@ export default function AudioChat() {
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-white">{roomName}</h1>
                 {connectionState === ConnectionState.Connected && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
-                    ●<span className="hidden sm:inline"> Connected{latency !== null ? ` (${latency}ms)` : ''}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
+                    <span>●</span>
+                    <span className="hidden sm:inline">Connected{latency !== null ? ` (${latency}ms)` : ''}</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Reconnecting && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
-                    ●<span className="hidden sm:inline"> Reconnecting...</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
+                    <span>●</span>
+                    <span className="hidden sm:inline">Reconnecting...</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Disconnected && disconnectReason && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
-                    ●<span className="hidden sm:inline"> Disconnected: {disconnectReason}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
+                    <span>●</span>
+                    <span className="hidden sm:inline">Disconnected: {disconnectReason}</span>
                   </span>
                 )}
               </div>
@@ -990,8 +994,8 @@ export default function AudioChat() {
         />
         <LatencyMonitor onLatencyChange={setLatency} />
         {/* Main Content Area - with padding for fixed header/footer */}
-        <div className="flex-1 overflow-y-auto pt-24 pb-28 px-4">
-          <div className="max-w-7xl mx-auto">
+        <div className="flex-1 overflow-y-auto pt-16 pb-28 px-4">
+          <div className="max-w-7xl mx-auto h-full flex flex-col">
             {/* Connection Error Alert */}
             {connectionError && (
               <div className="mb-4 bg-red-900 border border-red-700 rounded-lg p-4">
@@ -1020,7 +1024,12 @@ export default function AudioChat() {
               <StartAudio label="Click to enable audio playback" />
             </div>
 
-            <ParticipantList />
+            <div className="flex flex-col md:flex-row gap-3 flex-1">
+              <ParticipantList />
+              <div className="flex-1">
+                <TextChat roomName={roomName} userName={userName} />
+              </div>
+            </div>
           </div>
         </div>
 

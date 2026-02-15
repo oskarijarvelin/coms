@@ -185,17 +185,12 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
     !isSending;
 
   return (
-    <div className="flex flex-col h-[500px] bg-gray-800 rounded-lg overflow-hidden">
+    <div className="flex flex-col h-125 md:h-full bg-gray-800 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="bg-gray-900 p-4 flex justify-between items-center border-b border-gray-700">
+      <div className="bg-gray-900 px-4 py-4 flex justify-between items-center border-b border-gray-700">
         <div className="flex items-center gap-2">
           <icons.chat className={iconSizes.lg + ' text-blue-400'} />
-          <div>
-            <h3 className="text-lg font-semibold text-white">Tekstichat</h3>
-            <p className="text-xs text-gray-400">
-              {allMessages.length} viestiä • {connectionState}
-            </p>
-          </div>
+          <h3 className="text-lg font-semibold text-white">Tekstichat</h3>
         </div>
         <button
           onClick={clearHistory}
@@ -208,7 +203,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-5 space-y-3">
         {allMessages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p>Ei viestejä vielä.</p>
@@ -238,7 +233,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
                       {formatTime(msg.timestamp)}
                     </span>
                   </div>
-                  <p className="text-sm break-words whitespace-pre-wrap">
+                  <p className="text-sm wrap-break-word whitespace-pre-wrap">
                     {msg.message}
                   </p>
                 </div>
@@ -250,7 +245,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSendMessage} className="p-4 bg-gray-900 border-t border-gray-700">
+      <form onSubmit={handleSendMessage} className="px-4 py-4 bg-gray-900 border-t border-gray-700">
         <div className="flex gap-2">
           <input
             type="text"
