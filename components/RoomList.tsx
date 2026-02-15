@@ -81,7 +81,7 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
   };
 
   const handleDelete = (roomId: string) => {
-    if (window.confirm('Are you sure you want to delete this room from your list?')) {
+    if (window.confirm('Haluatko varmasti poistaa tämän huoneen listaltasi?')) {
       const updatedRooms = rooms.filter((r) => r.id !== roomId);
       saveRooms(updatedRooms);
     }
@@ -104,7 +104,7 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
   const copyInviteLink = (room: Room) => {
     const link = getInviteLink(room);
     navigator.clipboard.writeText(link).then(() => {
-      alert('Invite link copied to clipboard!');
+      alert('Kutsulinkki kopioitu leikepöydälle!');
       setShowInviteModal(null);
     }).catch((err) => {
       console.error('Failed to copy:', err);
@@ -118,22 +118,22 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
     if (days === 0) {
-      return 'Today';
+      return 'Tänään';
     } else if (days === 1) {
-      return 'Yesterday';
+      return 'Eilen';
     } else if (days < 7) {
-      return `${days} days ago`;
+      return `${days} päivää sitten`;
     } else {
-      return date.toLocaleDateString();
+      return date.toLocaleDateString('fi-FI');
     }
   };
 
   if (rooms.length === 0) {
     return (
       <div className="mt-8 p-8 bg-gray-800 rounded-lg text-center">
-        <p className="text-gray-400 mb-2">No saved rooms yet</p>
+        <p className="text-gray-400 mb-2">Ei tallennettuja huoneita vielä</p>
         <p className="text-sm text-gray-500">
-          Enter a room name above to create or join a room
+          Syötä huoneen nimi ylhäällä luodaksesi tai liittyäksesi huoneeseen
         </p>
       </div>
     );
@@ -142,7 +142,7 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
   return (
     <>
       <div className="mt-8 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4 text-white">Your Rooms</h2>
+        <h2 className="text-xl font-semibold mb-4 text-white">Huoneesi</h2>
         <div className="space-y-3">
           {rooms.map((room) => (
             <div
@@ -153,13 +153,13 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Room Description
+                      Huoneen kuvaus
                     </label>
                     <input
                       type="text"
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      placeholder="Add a description..."
+                      placeholder="Lisää kuvaus..."
                       className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -168,13 +168,13 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
                       onClick={() => handleSaveEdit(room.id)}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded transition-colors"
                     >
-                      Save
+                      Tallenna
                     </button>
                     <button
                       onClick={handleCancelEdit}
                       className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-3 rounded transition-colors"
                     >
-                      Cancel
+                      Peruuta
                     </button>
                   </div>
                 </div>
@@ -187,7 +187,7 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
                         <p className="text-sm text-gray-400 mt-1">{room.description}</p>
                       )}
                       <p className="text-xs text-gray-500 mt-2">
-                        Last accessed: {formatDate(room.lastAccessedAt)}
+                        Viimeksi käytetty: {formatDate(room.lastAccessedAt)}
                       </p>
                     </div>
                   </div>
@@ -196,26 +196,26 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
                       onClick={() => handleJoin(room)}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors"
                     >
-                      Join
+                      Liity
                     </button>
                     <button
                       onClick={() => handleInvite(room)}
                       className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
-                      title="Get invite link"
+                      title="Hanki kutsulinkki"
                     >
                       <icons.invite className={iconSizes.md} />
                     </button>
                     <button
                       onClick={() => handleEdit(room)}
                       className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
-                      title="Edit room"
+                      title="Muokkaa huonetta"
                     >
                       <icons.edit className={iconSizes.md} />
                     </button>
                     <button
                       onClick={() => handleDelete(room.id)}
                       className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
-                      title="Delete room"
+                      title="Poista huone"
                     >
                       <icons.delete className={iconSizes.md} />
                     </button>
@@ -232,10 +232,10 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
             <h3 className="text-xl font-semibold text-white mb-4">
-              Invite to {showInviteModal.name}
+              Kutsu huoneeseen {showInviteModal.name}
             </h3>
             <p className="text-gray-300 mb-4">
-              Share this link with others to invite them to join this room:
+              Jaa tämä linkki muille kutsuaksesi heidät liittymään tähän huoneeseen:
             </p>
             <div className="bg-gray-900 p-3 rounded border border-gray-700 mb-4">
               <code className="text-sm text-blue-400 break-all">
@@ -247,13 +247,13 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
                 onClick={() => copyInviteLink(showInviteModal)}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
               >
-                Copy Link
+                Kopioi linkki
               </button>
               <button
                 onClick={() => setShowInviteModal(null)}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded transition-colors"
               >
-                Close
+                Sulje
               </button>
             </div>
           </div>
