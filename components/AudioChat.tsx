@@ -38,6 +38,40 @@ function ParticipantList() {
   const remoteParticipants = useRemoteParticipants();
   const audioTracks = useTracks([Track.Source.Microphone]);
   const [showDebug, setShowDebug] = useState(false);
+  const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
+
+  // Load speaker state for local participant's speaker icon
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('coms.speakerEnabled');
+      if (saved !== null) {
+        setIsSpeakerEnabled(saved === 'true');
+      }
+    } catch {
+      // ignore
+    }
+
+    // Listen for storage changes to update in real-time
+    const handleStorageChange = () => {
+      try {
+        const saved = localStorage.getItem('coms.speakerEnabled');
+        if (saved !== null) {
+          setIsSpeakerEnabled(saved === 'true');
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Also listen for custom event for same-tab updates
+    window.addEventListener('speakerStateChanged', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('speakerStateChanged', handleStorageChange);
+    };
+  }, []);
 
   return (
     <div className="w-full max-w-md">
@@ -73,6 +107,8 @@ function ParticipantList() {
 
       <div className="space-y-2">
         {participants.map((participant) => {
+          const isLocal = participant.identity === localParticipant?.identity;
+
           return (
             <div
               key={participant.identity}
@@ -85,16 +121,26 @@ function ParticipantList() {
               <div>
                 <p className="font-medium">
                   {participant.name || participant.identity}
-                  {participant.identity === localParticipant?.identity && (
+                  {isLocal && (
                     <span className="text-gray-400 ml-2">(Sinä)</span>
                   )}
                 </p>
               </div>
               <div className="flex gap-2">
+                {/* Microphone status for all participants */}
                 {participant.isMicrophoneEnabled ? (
                   <icons.microphone className={iconSizes.lg + ' text-green-400'} />
                 ) : (
                   <icons.microphoneMuted className={iconSizes.lg + ' text-red-400'} />
+                )}
+
+                {/* Speaker status only for local participant */}
+                {isLocal && (
+                  isSpeakerEnabled ? (
+                    <icons.speaker className={iconSizes.lg + ' text-green-400'} />
+                  ) : (
+                    <icons.speakerMuted className={iconSizes.lg + ' text-red-400'} />
+                  )
                 )}
               </div>
             </div>
@@ -223,15 +269,36 @@ function LatencyMonitor({ onLatencyChange }: { onLatencyChange: (latency: number
 }
 
 function MicrophoneToggle() {
-  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const { localParticipant, isMicrophoneEnabled, microphoneTrack } = useLocalParticipant();
   const [isLoading, setIsLoading] = useState(false);
+  const [micEnabled, setMicEnabled] = useState(true);
+
+  // Sync local state with actual microphone state
+  useEffect(() => {
+    const enabled = microphoneTrack?.track?.mediaStreamTrack?.enabled ?? isMicrophoneEnabled;
+    setMicEnabled(enabled);
+  }, [microphoneTrack, isMicrophoneEnabled]);
 
   const toggleMicrophone = async () => {
     if (!localParticipant || isLoading) return;
 
     setIsLoading(true);
     try {
-      await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+      // Get the current microphone track publication
+      const micTrack = localParticipant.getTrackPublication(Track.Source.Microphone);
+
+      if (micTrack?.track) {
+        // For custom tracks (like RNNoise), we need to toggle the underlying MediaStreamTrack
+        const mediaStreamTrack = micTrack.track.mediaStreamTrack;
+        if (mediaStreamTrack) {
+          const newState = !mediaStreamTrack.enabled;
+          mediaStreamTrack.enabled = newState;
+          setMicEnabled(newState);
+        }
+      } else {
+        // Fallback to setMicrophoneEnabled for when no track is published yet
+        await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+      }
     } catch (error) {
       console.error('Failed to toggle microphone:', error);
     } finally {
@@ -244,13 +311,13 @@ function MicrophoneToggle() {
       onClick={toggleMicrophone}
       disabled={isLoading}
       className={`relative p-3 md:p-4 rounded-full transition-all duration-200 ${
-        isMicrophoneEnabled
-          ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
-          : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
+        micEnabled
+          ? 'bg-green-400 hover:bg-green-500 shadow-lg shadow-green-400/30'
+          : 'bg-red-400 hover:bg-red-500 shadow-lg shadow-red-400/30'
       } disabled:opacity-50 disabled:cursor-not-allowed`}
-      title={isMicrophoneEnabled ? 'Mykistä mikrofoni' : 'Poista mykistys'}
+      title={micEnabled ? 'Mykistä mikrofoni' : 'Poista mykistys'}
     >
-      {isMicrophoneEnabled ? (
+      {micEnabled ? (
         <icons.microphone className="w-8 h-8 md:w-10 md:h-10 text-white" />
       ) : (
         <icons.microphoneMuted className="w-8 h-8 md:w-10 md:h-10 text-white" />
@@ -305,6 +372,9 @@ function SpeakerToggle() {
       setIsSpeakerEnabled(newState);
       localStorage.setItem('coms.speakerEnabled', String(newState));
 
+      // Dispatch custom event for same-tab updates
+      window.dispatchEvent(new Event('speakerStateChanged'));
+
       // Apply immediately to all audio elements
       const audioElements = document.querySelectorAll('audio');
       audioElements.forEach((audio) => {
@@ -323,8 +393,8 @@ function SpeakerToggle() {
       disabled={isLoading}
       className={`relative p-3 md:p-4 rounded-full transition-all duration-200 ${
         isSpeakerEnabled
-          ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
-          : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
+          ? 'bg-green-400 hover:bg-green-500 shadow-lg shadow-green-400/30'
+          : 'bg-red-400 hover:bg-red-500 shadow-lg shadow-red-400/30'
       } disabled:opacity-50 disabled:cursor-not-allowed`}
       title={isSpeakerEnabled ? 'Mykistä kaiutin' : 'Poista kaiuttimen mykistys'}
     >
@@ -474,7 +544,7 @@ function InviteLinkModal({
             <button
               onClick={handleCustomInvite}
               disabled={!customUserName.trim()}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-green-700 hover:bg-green-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
             >
               {copiedPersonalized ? (
                 <>
@@ -526,20 +596,20 @@ function RNNoiseAudioPublisher({ enabled }: { enabled: boolean }) {
     async function publishRNNoiseTrack() {
       try {
         console.log('🎙️ Creating RNNoise audio track...');
-        
+
         // Import dynamically to avoid SSR issues
         const { createRNNoiseTrack } = await import('@/lib/audio/createRNNoiseTrack');
         const livekit = await import('livekit-client');
-        
+
         const result = await createRNNoiseTrack({
           echoCancellation: true,
           autoGainControl: true,
         });
-        
+
         cleanup = result.cleanup;
-        
+
         console.log('✅ RNNoise track created, publishing...');
-        
+
         // Create LiveKit LocalAudioTrack directly from the processed MediaStreamTrack
         // Using LocalAudioTrack constructor as it's the only way to use a custom MediaStreamTrack
         // The constructor signature is: (track, constraints, userProvidedTrack, audioContext)
@@ -550,13 +620,13 @@ function RNNoiseAudioPublisher({ enabled }: { enabled: boolean }) {
           autoGainControl: true,
           noiseSuppression: false, // RNNoise handles noise suppression
         }, true); // userProvidedTrack = true
-        
+
         // Publish the track
         await localParticipant.publishTrack(lkTrack, {
           name: 'microphone',
           source: Track.Source.Microphone,
         });
-        
+
         trackPublishedRef.current = true;
         console.log('✅ RNNoise track published successfully');
       } catch (error) {
@@ -1015,19 +1085,19 @@ export default function AudioChat() {
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-white">{roomName}</h1>
                 {connectionState === ConnectionState.Connected && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-700 text-white">
                     <span>●</span>
                     <span className="hidden sm:inline">Yhdistetty{latency !== null ? ` (${latency}ms)` : ''}</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Reconnecting && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-700 text-white animate-pulse">
                     <span>●</span>
                     <span className="hidden sm:inline">Yhdistetään uudelleen...</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Disconnected && disconnectReason && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-700 text-white">
                     <span>●</span>
                     <span className="hidden sm:inline">Yhteys katkaistu: {disconnectReason}</span>
                   </span>
@@ -1037,7 +1107,7 @@ export default function AudioChat() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                className="bg-green-700 hover:bg-green-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
                 title="Luo kutsulinkki"
               >
                 <icons.invite className={iconSizes.sm} />
@@ -1045,7 +1115,7 @@ export default function AudioChat() {
               </button>
               <button
                 onClick={handleLeaveRoom}
-                className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                className="bg-red-700 hover:bg-red-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
                 <icons.leave className={iconSizes.sm} />
                 <span className="hidden sm:inline">Poistu huoneesta</span>
