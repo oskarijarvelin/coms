@@ -123,7 +123,7 @@ function AudioLevelIndicator() {
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-gray-400">Mic:</span>
-      <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+      <div className="w-12 sm:w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-100 ${getVolumeColor()}`}
           style={{ width: `${volumePercent}%` }}
@@ -187,13 +187,22 @@ function LatencyMonitor({ onLatencyChange }: { onLatencyChange: (latency: number
     const updateLatency = async () => {
       try {
         const track = microphoneTrack.track as any;
+        console.log('Attempting to get latency stats...');
+
         if (track.getSenderStats) {
           const stats = await track.getSenderStats();
+          console.log('Sender stats:', stats);
+
           if (stats && stats.roundTripTime !== undefined) {
-            // Convert to milliseconds and round to 1 decimal
-            const latencyMs = Math.round(stats.roundTripTime * 1000 * 10) / 10;
+            // Convert to milliseconds and round to integer
+            const latencyMs = Math.round(stats.roundTripTime * 1000);
+            console.log('Latency:', latencyMs, 'ms');
             onLatencyChange(latencyMs);
+          } else {
+            console.log('No roundTripTime in stats');
           }
+        } else {
+          console.log('getSenderStats not available');
         }
       } catch (error) {
         console.error('Failed to get latency stats:', error);
@@ -889,17 +898,17 @@ export default function AudioChat() {
                 <h1 className="text-2xl font-bold text-white">{roomName}</h1>
                 {connectionState === ConnectionState.Connected && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
-                    ● Connected{latency !== null ? ` (${latency}ms)` : ''}
+                    ●<span className="hidden sm:inline"> Connected{latency !== null ? ` (${latency}ms)` : ''}</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Reconnecting && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
-                    ● Reconnecting...
+                    ●<span className="hidden sm:inline"> Reconnecting...</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Disconnected && disconnectReason && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
-                    ● Disconnected: {disconnectReason}
+                    ●<span className="hidden sm:inline"> Disconnected: {disconnectReason}</span>
                   </span>
                 )}
               </div>
@@ -911,13 +920,14 @@ export default function AudioChat() {
                 title="Create invite link"
               >
                 <icons.invite className={iconSizes.sm} />
-                <span>Invite</span>
+                <span className="hidden sm:inline">Invite</span>
               </button>
               <button
                 onClick={handleLeaveRoom}
-                className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
-                Leave Room
+                <icons.leave className={iconSizes.sm} />
+                <span className="hidden sm:inline">Leave Room</span>
               </button>
             </div>
           </div>

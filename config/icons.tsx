@@ -1,12 +1,12 @@
 /**
  * Icon Configuration
- * 
+ *
  * This file allows users to customize which icons are used throughout the application.
  * Icons are from @heroicons/react. You can change any icon by importing a different one
  * from the heroicons library.
- * 
+ *
  * Available icons: https://heroicons.com
- * 
+ *
  * To customize an icon:
  * 1. Find your desired icon at https://heroicons.com
  * 2. Import it at the top of this file
@@ -32,6 +32,7 @@ import {
   XMarkIcon,
   MusicalNoteIcon,
   NoSymbolIcon,
+  ArrowRightStartOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -48,23 +49,24 @@ export const icons = {
   microphoneMuted: NoSymbolIcon,        // Muted microphone
   speaker: SpeakerWaveIcon,             // Speaker/audio output
   speakerMuted: SpeakerXMarkIcon,       // Muted speaker
-  
+
   // UI controls
   settings: CogIcon,                    // Settings/configuration
   chevronUp: ChevronUpIcon,             // Expand/show more
   chevronDown: ChevronDownIcon,         // Collapse/hide
   close: XMarkIcon,                     // Close/cancel
   check: CheckIcon,                     // Confirm/success
-  
+
   // Chat and communication
   chat: ChatBubbleLeftRightIcon,        // Text chat
   send: PaperAirplaneIcon,              // Send message
   invite: ShareIcon,                    // Invite/share
-  
+
   // Actions
   edit: PencilIcon,                     // Edit/modify
   delete: TrashIcon,                    // Delete/remove
-  
+  leave: ArrowRightStartOnRectangleIcon, // Leave/logout
+
   // Status and info
   audioProcessing: SignalIcon,          // Audio processing/signal
   audioDevice: MusicalNoteIcon,         // Audio devices
