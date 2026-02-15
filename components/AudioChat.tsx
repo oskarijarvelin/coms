@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -14,10 +14,11 @@ import {
   useConnectionState,
   useRoomContext,
 } from '@livekit/components-react';
-import { Track, RoomEvent, DisconnectReason, ConnectionState } from 'livekit-client';
+import { Track, RoomEvent, DisconnectReason, ConnectionState, createLocalAudioTrack } from 'livekit-client';
 import RoomList, { Room } from './RoomList';
 import TextChat from './TextChat';
 import { icons, iconSizes } from '@/config/icons';
+import { useRNNoiseAudioTrack } from '@/hooks/useRNNoiseAudioTrack';
 
 const LIVEKIT_URL = 'wss://chat.oskarijarvelin.fi';
 
@@ -28,6 +29,7 @@ const STORAGE_KEYS = {
   echoCancellation: 'coms.echoCancellation',
   noiseSuppression: 'coms.noiseSuppression',
   autoGainControl: 'coms.autoGainControl',
+  rnnoiseEnabled: 'coms.rnnoiseEnabled',
 } as const;
 
 function ParticipantList() {
@@ -500,6 +502,80 @@ function InviteLinkModal({
   );
 }
 
+/**
+ * Component to handle RNNoise audio track publishing
+ * This component runs inside LiveKitRoom context
+ */
+function RNNoiseAudioPublisher({ enabled }: { enabled: boolean }) {
+  const { localParticipant } = useLocalParticipant();
+  const trackPublishedRef = useRef(false);
+
+  useEffect(() => {
+    // Reset published state when disabled
+    if (!enabled) {
+      trackPublishedRef.current = false;
+      return;
+    }
+
+    if (!localParticipant || trackPublishedRef.current) {
+      return;
+    }
+
+    let cleanup: (() => void) | null = null;
+
+    async function publishRNNoiseTrack() {
+      try {
+        console.log('🎙️ Creating RNNoise audio track...');
+        
+        // Import dynamically to avoid SSR issues
+        const { createRNNoiseTrack } = await import('@/lib/audio/createRNNoiseTrack');
+        const livekit = await import('livekit-client');
+        
+        const result = await createRNNoiseTrack({
+          echoCancellation: true,
+          autoGainControl: true,
+        });
+        
+        cleanup = result.cleanup;
+        
+        console.log('✅ RNNoise track created, publishing...');
+        
+        // Create LiveKit LocalAudioTrack directly from the processed MediaStreamTrack
+        // Using LocalAudioTrack constructor as it's the only way to use a custom MediaStreamTrack
+        // The constructor signature is: (track, constraints, userProvidedTrack, audioContext)
+        // Setting userProvidedTrack=true prevents LiveKit from managing the track lifecycle
+        // @ts-ignore - LocalAudioTrack constructor is not exported in public types
+        const lkTrack = new livekit.LocalAudioTrack(result.track, {
+          echoCancellation: true,
+          autoGainControl: true,
+          noiseSuppression: false, // RNNoise handles noise suppression
+        }, true); // userProvidedTrack = true
+        
+        // Publish the track
+        await localParticipant.publishTrack(lkTrack, {
+          name: 'microphone',
+          source: Track.Source.Microphone,
+        });
+        
+        trackPublishedRef.current = true;
+        console.log('✅ RNNoise track published successfully');
+      } catch (error) {
+        console.error('❌ Failed to publish RNNoise track:', error);
+      }
+    }
+
+    publishRNNoiseTrack();
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [enabled, localParticipant]);
+
+  return null;
+}
+
 function DeviceSettingsPopup({
   isOpen,
   onClose,
@@ -509,6 +585,8 @@ function DeviceSettingsPopup({
   setNoiseSuppression,
   autoGainControl,
   setAutoGainControl,
+  rnnoiseEnabled,
+  setRnnoiseEnabled,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -518,6 +596,8 @@ function DeviceSettingsPopup({
   setNoiseSuppression: (value: boolean) => void;
   autoGainControl: boolean;
   setAutoGainControl: (value: boolean) => void;
+  rnnoiseEnabled: boolean;
+  setRnnoiseEnabled: (value: boolean) => void;
 }) {
   if (!isOpen) return null;
 
@@ -626,6 +706,32 @@ function DeviceSettingsPopup({
                 className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
               />
             </label>
+
+            {/* Divider */}
+            <div className="border-t border-gray-700 my-2"></div>
+
+            <label className="flex items-center justify-between cursor-pointer group p-2 rounded hover:bg-gray-700/50 transition-colors">
+              <div className="flex-1">
+                <span className="text-sm text-gray-200 group-hover:text-white transition-colors block font-medium">
+                  RNNoise melunpoisto
+                </span>
+                <span className="text-xs text-gray-400">
+                  Edistynyt melunpoisto (korvaa kohinan vaimennuksen)
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={rnnoiseEnabled}
+                onChange={(e) => {
+                  setRnnoiseEnabled(e.target.checked);
+                  // When RNNoise is enabled, disable browser noise suppression
+                  if (e.target.checked) {
+                    setNoiseSuppression(false);
+                  }
+                }}
+                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-0 cursor-pointer"
+              />
+            </label>
           </div>
         </div>
       </div>
@@ -647,6 +753,7 @@ export default function AudioChat() {
   const [echoCancellation, setEchoCancellation] = useState(true);
   const [noiseSuppression, setNoiseSuppression] = useState(true);
   const [autoGainControl, setAutoGainControl] = useState(true);
+  const [rnnoiseEnabled, setRnnoiseEnabled] = useState(false);
 
   // Device settings popup
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
@@ -661,12 +768,14 @@ export default function AudioChat() {
       const savedEcho = localStorage.getItem(STORAGE_KEYS.echoCancellation);
       const savedNoise = localStorage.getItem(STORAGE_KEYS.noiseSuppression);
       const savedGain = localStorage.getItem(STORAGE_KEYS.autoGainControl);
+      const savedRnnoise = localStorage.getItem(STORAGE_KEYS.rnnoiseEnabled);
 
       if (savedRoom) setRoomName(savedRoom);
       if (savedUser) setUserName(savedUser);
       if (savedEcho !== null) setEchoCancellation(savedEcho === 'true');
       if (savedNoise !== null) setNoiseSuppression(savedNoise === 'true');
       if (savedGain !== null) setAutoGainControl(savedGain === 'true');
+      if (savedRnnoise !== null) setRnnoiseEnabled(savedRnnoise === 'true');
 
       // Check if there are URL parameters (for invite links)
       if (typeof window !== 'undefined') {
@@ -728,6 +837,14 @@ export default function AudioChat() {
       // ignore
     }
   }, [autoGainControl]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.rnnoiseEnabled, String(rnnoiseEnabled));
+    } catch {
+      // ignore
+    }
+  }, [rnnoiseEnabled]);
 
   const addOrUpdateRoom = (name: string) => {
     try {
@@ -942,7 +1059,9 @@ export default function AudioChat() {
         token={token}
         serverUrl={LIVEKIT_URL}
         connect={true}
-        audio={{
+        // When RNNoise is enabled, disable default audio capture
+        // The RNNoiseAudioPublisher component handles track creation and publishing separately
+        audio={rnnoiseEnabled ? false : {
           // Browser's native audio processing for better quality
           echoCancellation,    // Removes echo/feedback
           noiseSuppression,    // Reduces background noise
@@ -993,6 +1112,8 @@ export default function AudioChat() {
           onConnectionError={setConnectionError}
         />
         <LatencyMonitor onLatencyChange={setLatency} />
+        {/* RNNoise Audio Publisher - only when enabled */}
+        {rnnoiseEnabled && <RNNoiseAudioPublisher enabled={rnnoiseEnabled} />}
         {/* Main Content Area - with padding for fixed header/footer */}
         <div className="flex-1 overflow-y-auto pt-16 pb-28 px-4">
           <div className="max-w-7xl mx-auto h-full flex flex-col">
@@ -1073,6 +1194,8 @@ export default function AudioChat() {
           setNoiseSuppression={setNoiseSuppression}
           autoGainControl={autoGainControl}
           setAutoGainControl={setAutoGainControl}
+          rnnoiseEnabled={rnnoiseEnabled}
+          setRnnoiseEnabled={setRnnoiseEnabled}
         />
 
         {/* Invite Link Modal */}
