@@ -511,7 +511,13 @@ function RNNoiseAudioPublisher({ enabled }: { enabled: boolean }) {
   const trackPublishedRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !localParticipant || trackPublishedRef.current) {
+    // Reset published state when disabled
+    if (!enabled) {
+      trackPublishedRef.current = false;
+      return;
+    }
+
+    if (!localParticipant || trackPublishedRef.current) {
       return;
     }
 
@@ -535,12 +541,15 @@ function RNNoiseAudioPublisher({ enabled }: { enabled: boolean }) {
         console.log('✅ RNNoise track created, publishing...');
         
         // Create LiveKit LocalAudioTrack directly from the processed MediaStreamTrack
-        // @ts-ignore - Using internal API
+        // Using LocalAudioTrack constructor as it's the only way to use a custom MediaStreamTrack
+        // The constructor signature is: (track, constraints, userProvidedTrack, audioContext)
+        // Setting userProvidedTrack=true prevents LiveKit from managing the track lifecycle
+        // @ts-ignore - LocalAudioTrack constructor is not exported in public types
         const lkTrack = new livekit.LocalAudioTrack(result.track, {
           echoCancellation: true,
           autoGainControl: true,
-          noiseSuppression: false, // RNNoise handles this
-        }, true); // userProvidedTrack = true so LiveKit doesn't try to manage it
+          noiseSuppression: false, // RNNoise handles noise suppression
+        }, true); // userProvidedTrack = true
         
         // Publish the track
         await localParticipant.publishTrack(lkTrack, {
@@ -1050,6 +1059,8 @@ export default function AudioChat() {
         token={token}
         serverUrl={LIVEKIT_URL}
         connect={true}
+        // When RNNoise is enabled, disable default audio capture
+        // The RNNoiseAudioPublisher component handles track creation and publishing separately
         audio={rnnoiseEnabled ? false : {
           // Browser's native audio processing for better quality
           echoCancellation,    // Removes echo/feedback
