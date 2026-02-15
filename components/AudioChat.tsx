@@ -30,7 +30,17 @@ const STORAGE_KEYS = {
   noiseSuppression: 'coms.noiseSuppression',
   autoGainControl: 'coms.autoGainControl',
   rnnoiseEnabled: 'coms.rnnoiseEnabled',
+  autoJoin: 'coms.autoJoin',
+  getIdentityKey: (userName: string, roomName: string) => `coms.identity.${userName}.${roomName}`,
 } as const;
+
+function normalizeRoomName(value: string) {
+  return value.trim();
+}
+
+function normalizeUserName(value: string) {
+  return value.trim();
+}
 
 function ParticipantList() {
   const participants = useParticipants();
@@ -855,6 +865,9 @@ export default function AudioChat() {
   // Invite link modal
   const [showInviteModal, setShowInviteModal] = useState(false);
 
+  const didAutoJoinRef = useRef(false);
+  const loadedFromUrlRef = useRef(false);
+
   useEffect(() => {
     try {
       const savedRoom = localStorage.getItem(STORAGE_KEYS.roomName);
@@ -877,9 +890,11 @@ export default function AudioChat() {
         const roomParam = urlParams.get('room');
         const userParam = urlParams.get('user');
         if (roomParam) {
+          loadedFromUrlRef.current = true;
           setRoomName(roomParam);
         }
         if (userParam) {
+          loadedFromUrlRef.current = true;
           setUserName(userParam);
         }
         // Clear the URL parameters after reading them
@@ -891,6 +906,74 @@ export default function AudioChat() {
       // ignore storage errors (private mode, disabled storage, etc.)
     }
   }, []);
+
+  const handleJoinRoom = async (customRoomName?: string, customUserName?: string) => {
+    const rawRoom = customRoomName ?? roomName;
+    const rawUser = customUserName ?? userName;
+    const targetRoom = normalizeRoomName(rawRoom);
+    const targetUser = normalizeUserName(rawUser);
+
+    if (!targetRoom || !targetUser) {
+      alert('Ole hyvä ja syötä sekä juttutuvan nimi että nimesi');
+      return;
+    }
+
+    try {
+      // Keep inputs tidy
+      if (targetRoom !== roomName) setRoomName(targetRoom);
+      if (targetUser !== userName) setUserName(targetUser);
+
+      // Get or create persistent identity for this user+room combination
+      const normalizedIdentityKey = STORAGE_KEYS.getIdentityKey(targetUser, targetRoom);
+      const legacyIdentityKey = STORAGE_KEYS.getIdentityKey(rawUser, rawRoom);
+
+      let persistentIdentity = localStorage.getItem(normalizedIdentityKey);
+      if (!persistentIdentity && legacyIdentityKey !== normalizedIdentityKey) {
+        persistentIdentity = localStorage.getItem(legacyIdentityKey);
+        if (persistentIdentity) {
+          try {
+            localStorage.setItem(normalizedIdentityKey, persistentIdentity);
+            localStorage.removeItem(legacyIdentityKey);
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      if (!persistentIdentity) {
+        // Generate new identity if none exists
+        persistentIdentity = `${targetUser}-${Math.random().toString(36).substring(2, 9)}`;
+        localStorage.setItem(normalizedIdentityKey, persistentIdentity);
+      }
+
+      // Get token from API with persistent identity
+      const response = await fetch(
+        `/api/token?room=${encodeURIComponent(targetRoom)}&username=${encodeURIComponent(targetUser)}&identity=${encodeURIComponent(persistentIdentity)}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to get token');
+      }
+
+      const data = await response.json();
+
+      // Save room to history
+      addOrUpdateRoom(targetRoom);
+
+      try {
+        localStorage.setItem(STORAGE_KEYS.autoJoin, 'true');
+      } catch {
+        // ignore
+      }
+
+      // Update state
+      setToken(data.token);
+      setIsConnected(true);
+    } catch (error) {
+      console.error('Error joining room:', error);
+      alert('Juttutupaan liittyminen epäonnistui. Yritä uudelleen.');
+    }
+  };
 
   useEffect(() => {
     try {
@@ -969,38 +1052,28 @@ export default function AudioChat() {
     }
   };
 
-  const handleJoinRoom = async (customRoomName?: string) => {
-    const targetRoom = customRoomName || roomName;
+  useEffect(() => {
+    if (didAutoJoinRef.current) return;
+    if (isConnected) return;
 
-    if (!targetRoom || !userName) {
-      alert('Ole hyvä ja syötä sekä juttutuvan nimi että nimesi');
-      return;
-    }
-
+    let shouldAutoJoin = false;
     try {
-      // Get token from API
-      const response = await fetch(`/api/token?room=${encodeURIComponent(targetRoom)}&username=${encodeURIComponent(userName)}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to get token');
-      }
-
-      const data = await response.json();
-
-      // Save room to history
-      addOrUpdateRoom(targetRoom);
-
-      // Update state
-      if (customRoomName) {
-        setRoomName(customRoomName);
-      }
-      setToken(data.token);
-      setIsConnected(true);
-    } catch (error) {
-      console.error('Error joining room:', error);
-      alert('Juttutupaan liittyminen epäonnistui. Yritä uudelleen.');
+      shouldAutoJoin = localStorage.getItem(STORAGE_KEYS.autoJoin) === 'true';
+    } catch {
+      shouldAutoJoin = false;
     }
-  };
+
+    // If the user arrived via an invite link, don't immediately auto-join again.
+    if (loadedFromUrlRef.current) return;
+
+    const room = normalizeRoomName(roomName);
+    const user = normalizeUserName(userName);
+
+    if (!shouldAutoJoin || !room || !user) return;
+
+    didAutoJoinRef.current = true;
+    void handleJoinRoom(room, user);
+  }, [isConnected, roomName, userName]);
 
   const handleDisconnect = (reason?: DisconnectReason) => {
     let reasonText = 'Tuntematon';
@@ -1028,6 +1101,13 @@ export default function AudioChat() {
   const handleLeaveRoom = () => {
     setIsConnected(false);
     setToken('');
+
+    // If the user explicitly leaves, don't auto-join on next reload.
+    try {
+      localStorage.setItem(STORAGE_KEYS.autoJoin, 'false');
+    } catch {
+      // ignore
+    }
   };
 
   if (!isConnected) {

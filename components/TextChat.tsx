@@ -113,7 +113,9 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
   const [allMessages, setAllMessages] = useState<StoredMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const storageKey = `chat_${roomName}`;
+  const normalizedRoomKey = roomName.trim();
+  const storageKey = `chat_${normalizedRoomKey}`;
+  const legacyStorageKey = `chat_${roomName}`;
 
   // Get local user's identity and display name
   const localIdentity = localParticipant?.identity || '';
@@ -121,16 +123,34 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
 
   // Load messages from localStorage on mount
   useEffect(() => {
+    if (!normalizedRoomKey) return;
+
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const messages = JSON.parse(stored) as StoredMessage[];
         setAllMessages(messages);
+        return;
+      }
+
+      // Backward-compat: migrate old key that used the raw roomName value
+      if (legacyStorageKey !== storageKey) {
+        const legacyStored = localStorage.getItem(legacyStorageKey);
+        if (legacyStored) {
+          const messages = JSON.parse(legacyStored) as StoredMessage[];
+          setAllMessages(messages);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(messages));
+            localStorage.removeItem(legacyStorageKey);
+          } catch {
+            // ignore
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
-  }, [storageKey]);
+  }, [storageKey, legacyStorageKey, normalizedRoomKey]);
 
   // Update allMessages when new chatMessages arrive
   useEffect(() => {

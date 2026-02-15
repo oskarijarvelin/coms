@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const room = searchParams.get('room');
   const username = searchParams.get('username');
+  const identity = searchParams.get('identity'); // Optional: client-provided persistent identity
 
   if (!room || !username) {
     return NextResponse.json(
@@ -25,9 +26,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Generate unique identity by adding random suffix to username
+    // Use provided identity or generate unique identity by adding random suffix to username
     // This allows multiple users with the same display name
-    const uniqueIdentity = `${username}-${Math.random().toString(36).substring(2, 9)}`;
+    const uniqueIdentity = identity || `${username}-${Math.random().toString(36).substring(2, 9)}`;
 
     // Create an access token with 6 hour expiration
     const at = new AccessToken(apiKey, apiSecret, {
