@@ -82,7 +82,7 @@ function ParticipantList() {
             >
               <div>
                 <p className="font-medium">
-                  {participant.identity}
+                  {participant.name || participant.identity}
                   {participant.identity === localParticipant?.identity && (
                     <span className="text-gray-400 ml-2">(You)</span>
                   )}

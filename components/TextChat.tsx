@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useConnectionState, useDataChannel as useLivekitDataChannel } from '@livekit/components-react';
+import { useConnectionState, useDataChannel as useLivekitDataChannel, useLocalParticipant } from '@livekit/components-react';
 import { ConnectionState } from 'livekit-client';
 import { icons, iconSizes } from '@/config/icons';
 
@@ -108,11 +108,16 @@ function useDataChannel() {
 
 export default function TextChat({ roomName, userName }: TextChatProps) {
   const { send, isSending, messages: chatMessages, deletedMessageIds, connectionState } = useDataChannel();
+  const { localParticipant } = useLocalParticipant();
   const [inputMessage, setInputMessage] = useState('');
   const [allMessages, setAllMessages] = useState<StoredMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const storageKey = `chat_${roomName}`;
+
+  // Get local user's identity and display name
+  const localIdentity = localParticipant?.identity || '';
+  const localName = localParticipant?.name || userName;
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -193,11 +198,11 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
         const next: StoredMessage[] = [
           ...prevMessages,
           {
-            id: `${timestamp}-${userName}-${Math.random().toString(36).substring(2, 9)}`,
+            id: `${timestamp}-${localIdentity}-${Math.random().toString(36).substring(2, 9)}`,
             timestamp,
             message: inputMessage.trim(),
-            fromIdentity: userName,
-            fromName: userName,
+            fromIdentity: localIdentity,
+            fromName: localName,
           },
         ];
 
@@ -288,7 +293,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
           </div>
         ) : (
           allMessages.map((msg) => {
-            const isOwnMessage = msg.fromIdentity === userName;
+            const isOwnMessage = msg.fromIdentity === localIdentity;
 
             return (
               <div

@@ -25,9 +25,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Generate unique identity by adding random suffix to username
+    // This allows multiple users with the same display name
+    const uniqueIdentity = `${username}-${Math.random().toString(36).substring(2, 9)}`;
+
     // Create an access token with 6 hour expiration
     const at = new AccessToken(apiKey, apiSecret, {
-      identity: username,
+      identity: uniqueIdentity,
+      name: username, // Display name shown to other users
       ttl: '6h', // Token valid for 6 hours
     });
 
