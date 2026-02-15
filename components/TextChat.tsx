@@ -20,10 +20,15 @@ interface TextChatProps {
   userName: string;
 }
 
+type ChatPayload =
+  | { type: 'message'; content: string }
+  | { type: 'delete'; messageId: string };
+
 function useDataChannel() {
   const textDecoderRef = useRef<TextDecoder | null>(null);
   const textEncoderRef = useRef<TextEncoder | null>(null);
   const [messages, setMessages] = useState<StoredMessage[]>([]);
+  const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
 
   const connectionState = useConnectionState();
   const { send: sendBytes, isSending, message } = useLivekitDataChannel(CHAT_TOPIC);
@@ -36,23 +41,53 @@ function useDataChannel() {
     }
 
     const decoded = textDecoderRef.current.decode(message.payload);
-    const timestamp = Date.now();
-    const fromIdentity = message.from?.identity || 'Unknown';
-    const fromName = message.from?.name || fromIdentity;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `${timestamp}-${fromIdentity}-${Math.random().toString(36).substring(2, 9)}`,
-        timestamp,
-        message: decoded,
-        fromIdentity,
-        fromName,
-      },
-    ]);
+    try {
+      const payload = JSON.parse(decoded) as ChatPayload;
+
+      if (payload.type === 'delete') {
+        // Handle delete message
+        setDeletedMessageIds(prev => new Set(prev).add(payload.messageId));
+        return;
+      }
+
+      if (payload.type === 'message') {
+        // Handle regular message
+        const timestamp = Date.now();
+        const fromIdentity = message.from?.identity || 'Unknown';
+        const fromName = message.from?.name || fromIdentity;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `${timestamp}-${fromIdentity}-${Math.random().toString(36).substring(2, 9)}`,
+            timestamp,
+            message: payload.content,
+            fromIdentity,
+            fromName,
+          },
+        ]);
+      }
+    } catch (error) {
+      // Fallback for old format (plain text messages)
+      const timestamp = Date.now();
+      const fromIdentity = message.from?.identity || 'Unknown';
+      const fromName = message.from?.name || fromIdentity;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${timestamp}-${fromIdentity}-${Math.random().toString(36).substring(2, 9)}`,
+          timestamp,
+          message: decoded,
+          fromIdentity,
+          fromName,
+        },
+      ]);
+    }
   }, [message]);
 
-  const send = async (payload: string) => {
+  const send = async (payload: ChatPayload) => {
     if (
       connectionState === ConnectionState.Disconnected ||
       connectionState === ConnectionState.Connecting
@@ -64,15 +99,15 @@ function useDataChannel() {
       textEncoderRef.current = new TextEncoder();
     }
 
-    const bytes = textEncoderRef.current.encode(payload);
+    const bytes = textEncoderRef.current.encode(JSON.stringify(payload));
     await sendBytes(bytes, { reliable: true });
   };
 
-  return { send, isSending, messages, connectionState } as const;
+  return { send, isSending, messages, deletedMessageIds, connectionState } as const;
 }
 
 export default function TextChat({ roomName, userName }: TextChatProps) {
-  const { send, isSending, messages: chatMessages, connectionState } = useDataChannel();
+  const { send, isSending, messages: chatMessages, deletedMessageIds, connectionState } = useDataChannel();
   const [inputMessage, setInputMessage] = useState('');
   const [allMessages, setAllMessages] = useState<StoredMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -120,6 +155,24 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
     }
   }, [chatMessages, storageKey]);
 
+  // Handle message deletions
+  useEffect(() => {
+    if (deletedMessageIds.size > 0) {
+      setAllMessages(prevMessages => {
+        const filtered = prevMessages.filter(msg => !deletedMessageIds.has(msg.id));
+
+        // Save to localStorage
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(filtered));
+        } catch (error) {
+          console.error('Error saving chat history:', error);
+        }
+
+        return filtered;
+      });
+    }
+  }, [deletedMessageIds, storageKey]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -133,7 +186,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
     }
 
     try {
-      await send(inputMessage.trim());
+      await send({ type: 'message', content: inputMessage.trim() });
       const timestamp = Date.now();
 
       setAllMessages(prevMessages => {
@@ -170,6 +223,30 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      // Send delete message to all participants
+      await send({ type: 'delete', messageId });
+
+      // Remove locally
+      setAllMessages(prevMessages => {
+        const filtered = prevMessages.filter(msg => msg.id !== messageId);
+
+        // Save to localStorage
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(filtered));
+        } catch (error) {
+          console.error('Error saving chat history:', error);
+        }
+
+        return filtered;
+      });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      alert('Viestin poistaminen epäonnistui.');
+    }
   };
 
   const clearHistory = () => {
@@ -219,7 +296,7 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
                 className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
+                  className={`max-w-[80%] rounded-lg p-3 relative group ${
                     isOwnMessage
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-700 text-white'
@@ -232,6 +309,15 @@ export default function TextChat({ roomName, userName }: TextChatProps) {
                     <span className="text-xs opacity-70">
                       {formatTime(msg.timestamp)}
                     </span>
+                    {isOwnMessage && (
+                      <button
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-300"
+                        title="Poista viesti"
+                      >
+                        <icons.delete className={iconSizes.xs} />
+                      </button>
+                    )}
                   </div>
                   <p className="text-sm wrap-break-word whitespace-pre-wrap">
                     {msg.message}
