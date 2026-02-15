@@ -39,6 +39,15 @@ function ParticipantList() {
   const audioTracks = useTracks([Track.Source.Microphone]);
   const [showDebug, setShowDebug] = useState(false);
   const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
+  const [, forceUpdate] = useState({});
+
+  // Force re-render every second to pick up MediaStreamTrack.enabled changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate({});
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load speaker state for local participant's speaker icon
   useEffect(() => {
@@ -109,6 +118,15 @@ function ParticipantList() {
         {participants.map((participant) => {
           const isLocal = participant.identity === localParticipant?.identity;
 
+          // For local participant, check the actual MediaStreamTrack state
+          let micEnabled = participant.isMicrophoneEnabled;
+          if (isLocal && localParticipant) {
+            const micTrack = localParticipant.getTrackPublication(Track.Source.Microphone);
+            if (micTrack?.track?.mediaStreamTrack) {
+              micEnabled = micTrack.track.mediaStreamTrack.enabled;
+            }
+          }
+
           return (
             <div
               key={participant.identity}
@@ -128,11 +146,14 @@ function ParticipantList() {
               </div>
               <div className="flex gap-2">
                 {/* Microphone status for all participants */}
-                {participant.isMicrophoneEnabled ? (
-                  <icons.microphone className={iconSizes.lg + ' text-green-400'} />
-                ) : (
-                  <icons.microphoneMuted className={iconSizes.lg + ' text-red-400'} />
-                )}
+                <div className="relative">
+                  <icons.microphone className={iconSizes.lg + (micEnabled ? ' text-green-400' : ' text-red-400')} />
+                  {!micEnabled && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-full h-0.5 bg-white -rotate-45" />
+                    </div>
+                  )}
+                </div>
 
                 {/* Speaker status only for local participant */}
                 {isLocal && (
@@ -171,7 +192,7 @@ function AudioLevelIndicator() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-400">Mic:</span>
+      <icons.microphone className={iconSizes.sm + ' text-gray-400'} />
       <div className="w-12 sm:w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-100 ${getVolumeColor()}`}
@@ -317,11 +338,14 @@ function MicrophoneToggle() {
       } disabled:opacity-50 disabled:cursor-not-allowed`}
       title={micEnabled ? 'Mykistä mikrofoni' : 'Poista mykistys'}
     >
-      {micEnabled ? (
+      <div className="relative">
         <icons.microphone className="w-8 h-8 md:w-10 md:h-10 text-white" />
-      ) : (
-        <icons.microphoneMuted className="w-8 h-8 md:w-10 md:h-10 text-white" />
-      )}
+        {!micEnabled && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-full h-0.5 bg-white -rotate-45" />
+          </div>
+        )}
+      </div>
     </button>
   );
 }
@@ -1247,7 +1271,7 @@ export default function AudioChat() {
                   title="Ääniasetukset"
                 >
                   <icons.settings className={iconSizes.md} />
-                  <span className="hidden sm:inline">Asetukset</span>
+                  <span className="hidden sm:inline">Ääniasetukset</span>
                 </button>
               </div>
             </div>
