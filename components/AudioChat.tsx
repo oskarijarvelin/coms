@@ -40,7 +40,7 @@ function ParticipantList() {
   return (
     <div className="w-full max-w-md">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Participants ({participants.length})</h2>
+        <h2 className="text-xl font-semibold">Osallistujat ({participants.length})</h2>
         <button
           onClick={() => setShowDebug(!showDebug)}
           className="text-xs text-gray-400 hover:text-gray-200 transition-colors px-2 py-1 rounded hover:bg-gray-700 flex items-center gap-1"
@@ -48,12 +48,12 @@ function ParticipantList() {
           {showDebug ? (
             <>
               <icons.chevronUp className={iconSizes.xs} />
-              Hide Debug
+              Piilota debug
             </>
           ) : (
             <>
               <icons.chevronDown className={iconSizes.xs} />
-              Show Debug
+              Näytä debug
             </>
           )}
         </button>
@@ -62,10 +62,10 @@ function ParticipantList() {
       {/* Debug info - collapsible */}
       {showDebug && (
         <div className="bg-gray-700 rounded p-3 mb-4 text-xs">
-          <p className="text-gray-300 font-semibold mb-1">Debug info:</p>
-          <p className="text-gray-400">Remote participants: {remoteParticipants.length}</p>
-          <p className="text-gray-400">Audio tracks: {audioTracks.length}</p>
-          <p className="text-gray-400">Remote audio tracks: {audioTracks.filter(t => !t.participant.isLocal).length}</p>
+          <p className="text-gray-300 font-semibold mb-1">Debug-tiedot:</p>
+          <p className="text-gray-400">Etäosallistujat: {remoteParticipants.length}</p>
+          <p className="text-gray-400">Ääniraidat: {audioTracks.length}</p>
+          <p className="text-gray-400">Etäosallistujien ääniraidat: {audioTracks.filter(t => !t.participant.isLocal).length}</p>
         </div>
       )}
 
@@ -84,7 +84,7 @@ function ParticipantList() {
                 <p className="font-medium">
                   {participant.name || participant.identity}
                   {participant.identity === localParticipant?.identity && (
-                    <span className="text-gray-400 ml-2">(You)</span>
+                    <span className="text-gray-400 ml-2">(Sinä)</span>
                   )}
                 </p>
               </div>
@@ -246,7 +246,7 @@ function MicrophoneToggle() {
           ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
           : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
       } disabled:opacity-50 disabled:cursor-not-allowed`}
-      title={isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+      title={isMicrophoneEnabled ? 'Mykistä mikrofoni' : 'Poista mykistys'}
     >
       {isMicrophoneEnabled ? (
         <icons.microphone className="w-8 h-8 md:w-10 md:h-10 text-white" />
@@ -324,7 +324,7 @@ function SpeakerToggle() {
           ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/30'
           : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
       } disabled:opacity-50 disabled:cursor-not-allowed`}
-      title={isSpeakerEnabled ? 'Mute speaker' : 'Unmute speaker'}
+      title={isSpeakerEnabled ? 'Mykistä kaiutin' : 'Poista kaiuttimen mykistys'}
     >
       {isSpeakerEnabled ? (
         <icons.speaker className="w-8 h-8 md:w-10 md:h-10 text-white" />
@@ -379,7 +379,7 @@ function InviteLinkModal({
 
   const handleCustomInvite = () => {
     if (!customUserName.trim()) {
-      alert('Please enter a name for the invite link');
+      alert('Ole hyvä ja syötä nimi kutsulinkkiä varten');
       return;
     }
     const link = generateInviteLink(customUserName);
@@ -399,7 +399,7 @@ function InviteLinkModal({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-white flex items-center gap-2">
             <icons.invite className={iconSizes.lg} />
-            Create Invite Link
+            Luo kutsulinkki
           </h3>
           <button
             onClick={onClose}
@@ -413,10 +413,10 @@ function InviteLinkModal({
           {/* General invite link */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-              General Invite Link
+              Yleinen kutsulinkki
             </h4>
             <p className="text-sm text-gray-400">
-              Share this link to invite anyone to join <span className="text-white font-medium">{roomName}</span>
+              Jaa tämä linkki kutsuaksesi kenet tahansa huoneeseen <span className="text-white font-medium">{roomName}</span>
             </p>
             <div className="bg-gray-900 p-3 rounded border border-gray-700">
               <code className="text-sm text-blue-400 break-all block">
@@ -430,10 +430,10 @@ function InviteLinkModal({
               {copiedGeneral ? (
                 <>
                   <icons.check className={iconSizes.md} />
-                  Copied!
+                  Kopioitu!
                 </>
               ) : (
-                'Copy General Link'
+                'Kopioi yleinen linkki'
               )}
             </button>
           </div>
@@ -444,20 +444,20 @@ function InviteLinkModal({
           {/* Personalized invite link */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-              Personalized Invite Link
+              Henkilökohtainen kutsulinkki
             </h4>
             <p className="text-sm text-gray-400">
-              Create a link with a pre-filled name for a specific person
+              Luo linkki, jossa on esitäytetty nimi tietylle henkilölle
             </p>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Guest Name
+                Vieraan nimi
               </label>
               <input
                 type="text"
                 value={customUserName}
                 onChange={(e) => setCustomUserName(e.target.value)}
-                placeholder="Enter guest name..."
+                placeholder="Syötä vieraan nimi..."
                 className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleCustomInvite()}
               />
@@ -477,10 +477,10 @@ function InviteLinkModal({
               {copiedPersonalized ? (
                 <>
                   <icons.check className={iconSizes.md} />
-                  Copied!
+                  Kopioitu!
                 </>
               ) : (
-                'Copy Personalized Link'
+                'Kopioi henkilökohtainen linkki'
               )}
             </button>
           </div>
@@ -490,7 +490,7 @@ function InviteLinkModal({
             <p className="text-xs text-blue-300 flex items-start gap-2">
               <icons.info className={iconSizes.sm + ' shrink-0 mt-0.5'} />
               <span>
-                <strong>Tip:</strong> Personalized links automatically fill in the guest's name when they open the link, making it easier for them to join.
+                <strong>Vinkki:</strong> Henkilökohtaiset linkit täyttävät vieraan nimen automaattisesti, kun he avaavat linkin, mikä helpottaa liittymistä.
               </span>
             </p>
           </div>
@@ -532,7 +532,7 @@ function DeviceSettingsPopup({
       {/* Popup */}
       <div className="fixed bottom-24 right-4 bg-gray-800 rounded-lg shadow-2xl border border-gray-700 p-6 z-50 w-80 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Audio Settings</h3>
+          <h3 className="text-lg font-semibold text-white">Ääniasetukset</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
@@ -546,18 +546,18 @@ function DeviceSettingsPopup({
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide flex items-center gap-2">
               <icons.audioDevice className={iconSizes.md} />
-              Devices
+              Laitteet
             </h4>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Microphone
+                Mikrofoni
               </label>
               <MediaDeviceMenu kind="audioinput" />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Speaker
+                Kaiutin
               </label>
               <MediaDeviceMenu kind="audiooutput" />
             </div>
@@ -571,18 +571,18 @@ function DeviceSettingsPopup({
             <div>
               <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wide mb-2 flex items-center gap-2">
                 <icons.audioProcessing className={iconSizes.md} />
-                Audio Processing
+                Äänen käsittely
               </h4>
-              <p className="text-xs text-gray-400 mb-3">These settings require reconnection to take effect</p>
+              <p className="text-xs text-gray-400 mb-3">Nämä asetukset vaativat uudelleenyhdistämisen toimiakseen</p>
             </div>
 
             <label className="flex items-center justify-between cursor-pointer group p-2 rounded hover:bg-gray-700/50 transition-colors">
               <div className="flex-1">
                 <span className="text-sm text-gray-200 group-hover:text-white transition-colors block">
-                  Echo Cancellation
+                  Kaiun poisto
                 </span>
                 <span className="text-xs text-gray-400">
-                  Removes echo and feedback
+                  Poistaa kaiun ja takaisinkytkennän
                 </span>
               </div>
               <input
@@ -596,10 +596,10 @@ function DeviceSettingsPopup({
             <label className="flex items-center justify-between cursor-pointer group p-2 rounded hover:bg-gray-700/50 transition-colors">
               <div className="flex-1">
                 <span className="text-sm text-gray-200 group-hover:text-white transition-colors block">
-                  Noise Suppression
+                  Kohinan vaimennus
                 </span>
                 <span className="text-xs text-gray-400">
-                  Reduces background noise
+                  Vähentää taustamelua
                 </span>
               </div>
               <input
@@ -613,10 +613,10 @@ function DeviceSettingsPopup({
             <label className="flex items-center justify-between cursor-pointer group p-2 rounded hover:bg-gray-700/50 transition-colors">
               <div className="flex-1">
                 <span className="text-sm text-gray-200 group-hover:text-white transition-colors block">
-                  Auto Gain Control
+                  Automaattinen vahvistuksen säätö
                 </span>
                 <span className="text-xs text-gray-400">
-                  Normalizes volume levels
+                  Normalisoi äänenvoimakkuuden
                 </span>
               </div>
               <input
@@ -762,7 +762,7 @@ export default function AudioChat() {
     const targetRoom = customRoomName || roomName;
 
     if (!targetRoom || !userName) {
-      alert('Please enter both room name and your name');
+      alert('Ole hyvä ja syötä sekä huoneen nimi että nimesi');
       return;
     }
 
@@ -787,28 +787,28 @@ export default function AudioChat() {
       setIsConnected(true);
     } catch (error) {
       console.error('Error joining room:', error);
-      alert('Failed to join room. Please try again.');
+      alert('Huoneeseen liittyminen epäonnistui. Yritä uudelleen.');
     }
   };
 
   const handleDisconnect = (reason?: DisconnectReason) => {
-    let reasonText = 'Unknown';
-    if (!reason) reasonText = 'Connection lost';
-    else if (reason === DisconnectReason.CLIENT_INITIATED) reasonText = 'You left the room';
-    else if (reason === DisconnectReason.DUPLICATE_IDENTITY) reasonText = 'Duplicate identity (same name joined)';
-    else if (reason === DisconnectReason.SERVER_SHUTDOWN) reasonText = 'Server shutdown';
-    else if (reason === DisconnectReason.PARTICIPANT_REMOVED) reasonText = 'You were removed from the room';
-    else if (reason === DisconnectReason.ROOM_DELETED) reasonText = 'Room was deleted';
-    else if (reason === DisconnectReason.STATE_MISMATCH) reasonText = 'State mismatch';
-    else if (reason === DisconnectReason.JOIN_FAILURE) reasonText = 'Failed to join room';
-    else reasonText = `Code: ${reason}`;
+    let reasonText = 'Tuntematon';
+    if (!reason) reasonText = 'Yhteys katkesi';
+    else if (reason === DisconnectReason.CLIENT_INITIATED) reasonText = 'Poistuit huoneesta';
+    else if (reason === DisconnectReason.DUPLICATE_IDENTITY) reasonText = 'Kaksoisidentiteetti (sama nimi liittyi)';
+    else if (reason === DisconnectReason.SERVER_SHUTDOWN) reasonText = 'Palvelin sammui';
+    else if (reason === DisconnectReason.PARTICIPANT_REMOVED) reasonText = 'Sinut poistettiin huoneesta';
+    else if (reason === DisconnectReason.ROOM_DELETED) reasonText = 'Huone poistettiin';
+    else if (reason === DisconnectReason.STATE_MISMATCH) reasonText = 'Tilaristiriita';
+    else if (reason === DisconnectReason.JOIN_FAILURE) reasonText = 'Huoneeseen liittyminen epäonnistui';
+    else reasonText = `Koodi: ${reason}`;
 
     setDisconnectReason(reasonText);
 
     // Show alert if disconnect wasn't user-initiated
     if (reason && reason !== DisconnectReason.CLIENT_INITIATED) {
       setTimeout(() => {
-        alert(`Disconnected from room: ${reasonText}`);
+        alert(`Yhteys katkesi huoneeseen: ${reasonText}`);
         handleLeaveRoom();
       }, 500);
     }
@@ -826,26 +826,26 @@ export default function AudioChat() {
           <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 mb-6">
             <h1 className="text-3xl font-bold text-center mb-8 text-white flex items-center justify-center gap-3">
               <icons.room className={iconSizes.xl} />
-              Audio Chat
+              Äänichatti
             </h1>
 
             {(roomName || userName) && (
               <p className="text-xs text-gray-400 mb-4 text-center">
-                Room + Name are remembered on this device.
+                Huone + Nimi muistetaan tällä laitteella.
               </p>
             )}
 
             <div className="space-y-4">
               <div>
                 <label htmlFor="userName" className="block text-sm font-medium text-gray-300 mb-2">
-                  Your Name
+                  Nimesi
                 </label>
                 <input
                   id="userName"
                   type="text"
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
-                  placeholder="Enter your name"
+                  placeholder="Syötä nimesi"
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
                 />
@@ -853,14 +853,14 @@ export default function AudioChat() {
 
               <div>
                 <label htmlFor="roomName" className="block text-sm font-medium text-gray-300 mb-2">
-                  Room Name
+                  Huoneen nimi
                 </label>
                 <input
                   id="roomName"
                   type="text"
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  placeholder="Enter room name or select from below"
+                  placeholder="Syötä huoneen nimi tai valitse alta"
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
                 />
@@ -870,7 +870,7 @@ export default function AudioChat() {
                 onClick={() => handleJoinRoom()}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 mt-6"
               >
-                Join Room
+                Liity huoneeseen
               </button>
             </div>
           </div>
@@ -900,19 +900,19 @@ export default function AudioChat() {
                 {connectionState === ConnectionState.Connected && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
                     <span>●</span>
-                    <span className="hidden sm:inline">Connected{latency !== null ? ` (${latency}ms)` : ''}</span>
+                    <span className="hidden sm:inline">Yhdistetty{latency !== null ? ` (${latency}ms)` : ''}</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Reconnecting && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 animate-pulse">
                     <span>●</span>
-                    <span className="hidden sm:inline">Reconnecting...</span>
+                    <span className="hidden sm:inline">Yhdistetään uudelleen...</span>
                   </span>
                 )}
                 {connectionState === ConnectionState.Disconnected && disconnectReason && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">
                     <span>●</span>
-                    <span className="hidden sm:inline">Disconnected: {disconnectReason}</span>
+                    <span className="hidden sm:inline">Yhteys katkaistu: {disconnectReason}</span>
                   </span>
                 )}
               </div>
@@ -921,17 +921,17 @@ export default function AudioChat() {
               <button
                 onClick={() => setShowInviteModal(true)}
                 className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
-                title="Create invite link"
+                title="Luo kutsulinkki"
               >
                 <icons.invite className={iconSizes.sm} />
-                <span className="hidden sm:inline">Invite</span>
+                <span className="hidden sm:inline">Kutsu</span>
               </button>
               <button
                 onClick={handleLeaveRoom}
                 className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
                 <icons.leave className={iconSizes.sm} />
-                <span className="hidden sm:inline">Leave Room</span>
+                <span className="hidden sm:inline">Poistu huoneesta</span>
               </button>
             </div>
           </div>
@@ -970,20 +970,20 @@ export default function AudioChat() {
             // Show user-friendly alert
             setTimeout(() => {
               alert(
-                'Connection failed: Could not establish WebRTC connection.\n\n' +
-                'Common causes:\n' +
-                '• Your network/firewall blocks WebRTC traffic\n' +
-                '• The server needs TURN servers configured\n' +
-                '• NAT traversal issues\n\n' +
-                'Try:\n' +
-                '• Using a different network (mobile data, different WiFi)\n' +
-                '• Disabling VPN if active\n' +
-                '• Contact the server administrator about TURN configuration'
+                'Yhteys epäonnistui: WebRTC-yhteyttä ei voitu muodostaa.\n\n' +
+                'Yleisiä syitä:\n' +
+                '• Verkkosi/palomuurisi estää WebRTC-liikenteen\n' +
+                '• Palvelimen täytyy määrittää TURN-palvelimet\n' +
+                '• NAT-läpäisyongelmat\n\n' +
+                'Yritä:\n' +
+                '• Käytä eri verkkoa (mobiilidata, eri WiFi)\n' +
+                '• Poista VPN käytöstä jos aktiivinen\n' +
+                '• Ota yhteyttä palvelimen ylläpitäjään TURN-määrityksistä'
               );
               handleLeaveRoom();
             }, 500);
           } else {
-            setConnectionError(`Connection error: ${error.message}`);
+            setConnectionError(`Yhteysvirhe: ${error.message}`);
           }
         }}
       >
@@ -1002,16 +1002,16 @@ export default function AudioChat() {
                 <div className="flex items-start gap-3">
                   <icons.warning className={iconSizes.xl + ' text-red-400 shrink-0'} />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-red-200 mb-2">Connection Error</h3>
+                    <h3 className="font-semibold text-red-200 mb-2">Yhteysvirhe</h3>
                     <p className="text-sm text-red-300 mb-3">{connectionError}</p>
                     <details className="text-xs text-red-200">
-                      <summary className="cursor-pointer hover:underline mb-2">Troubleshooting tips</summary>
+                      <summary className="cursor-pointer hover:underline mb-2">Vianmääritysvinkkejä</summary>
                       <ul className="list-disc pl-5 space-y-1 text-red-300">
-                        <li>Try using a different network (mobile data, different WiFi)</li>
-                        <li>Disable VPN if you're using one</li>
-                        <li>Check if your firewall/antivirus blocks WebRTC</li>
-                        <li>Contact your network administrator</li>
-                        <li>Server admin: Configure TURN servers for LiveKit</li>
+                        <li>Yritä käyttää eri verkkoa (mobiilidata, eri WiFi)</li>
+                        <li>Poista VPN käytöstä jos käytät sellaista</li>
+                        <li>Tarkista estääkö palomuurisi/virustorjuntasi WebRTC:n</li>
+                        <li>Ota yhteyttä verkon ylläpitäjään</li>
+                        <li>Palvelimen ylläpitäjä: Määritä TURN-palvelimet LiveKitille</li>
                       </ul>
                     </details>
                   </div>
@@ -1021,7 +1021,7 @@ export default function AudioChat() {
 
             {/* Browser Audio Playback Button */}
             <div className="mb-4 flex justify-center">
-              <StartAudio label="Click to enable audio playback" />
+              <StartAudio label="Klikkaa ottaaksesi äänen käyttöön" />
             </div>
 
             <div className="flex flex-col md:flex-row gap-3 flex-1">
@@ -1053,10 +1053,10 @@ export default function AudioChat() {
                 <button
                   onClick={() => setShowDeviceSettings(!showDeviceSettings)}
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm font-medium text-gray-200 hover:text-white flex items-center gap-2"
-                  title="Audio Settings"
+                  title="Ääniasetukset"
                 >
                   <icons.settings className={iconSizes.md} />
-                  <span className="hidden sm:inline">Settings</span>
+                  <span className="hidden sm:inline">Asetukset</span>
                 </button>
               </div>
             </div>
