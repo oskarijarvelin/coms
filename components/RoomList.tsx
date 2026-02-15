@@ -20,8 +20,6 @@ interface RoomListProps {
 export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<string | null>(null);
-  const [editDescription, setEditDescription] = useState('');
   const [showInviteModal, setShowInviteModal] = useState<Room | null>(null);
 
   // Load rooms from localStorage
@@ -61,27 +59,10 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
     onJoinRoom(room.name);
   };
 
-  const handleEdit = (room: Room) => {
-    setEditingRoom(room.id);
-    setEditDescription(room.description || '');
-  };
 
-  const handleSaveEdit = (roomId: string) => {
-    const updatedRooms = rooms.map((r) =>
-      r.id === roomId ? { ...r, description: editDescription } : r
-    );
-    saveRooms(updatedRooms);
-    setEditingRoom(null);
-    setEditDescription('');
-  };
-
-  const handleCancelEdit = () => {
-    setEditingRoom(null);
-    setEditDescription('');
-  };
 
   const handleDelete = (roomId: string) => {
-    if (window.confirm('Haluatko varmasti poistaa tämän huoneen listaltasi?')) {
+    if (window.confirm('Haluatko varmasti poistaa tämän juttutuvan listaltasi?')) {
       const updatedRooms = rooms.filter((r) => r.id !== roomId);
       saveRooms(updatedRooms);
     }
@@ -131,9 +112,9 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
   if (rooms.length === 0) {
     return (
       <div className="mt-8 p-8 bg-gray-800 rounded-lg text-center">
-        <p className="text-gray-400 mb-2">Ei tallennettuja huoneita vielä</p>
+        <p className="text-gray-400 mb-2">Ei tallennettuja juttutupoja vielä</p>
         <p className="text-sm text-gray-500">
-          Syötä huoneen nimi ylhäällä luodaksesi tai liittyäksesi huoneeseen
+          Syötä juttutuvan nimi ylhäällä luodaksesi tai liittyäksesi juttutupaan
         </p>
       </div>
     );
@@ -142,53 +123,24 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
   return (
     <>
       <div className="mt-8 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4 text-white">Huoneesi</h2>
+        <h2 className="text-xl font-semibold mb-4 text-white">Aiemmat juttutuvat</h2>
         <div className="space-y-3">
           {rooms.map((room) => (
             <div
               key={room.id}
               className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
             >
-              {editingRoom === room.id ? (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Huoneen kuvaus
-                    </label>
-                    <input
-                      type="text"
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      placeholder="Lisää kuvaus..."
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleSaveEdit(room.id)}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded transition-colors"
-                    >
-                      Tallenna
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-3 rounded transition-colors"
-                    >
-                      Peruuta
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
+
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="font-semibold text-white text-lg">{room.name}</h3>
                       {room.description && (
                         <p className="text-sm text-gray-400 mt-1">{room.description}</p>
                       )}
-                      <p className="text-xs text-gray-500 mt-2">
-                        Viimeksi käytetty: {formatDate(room.lastAccessedAt)}
-                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-xs text-gray-500">Viimeksi käytetty:</p>
+                      <p className="text-xs text-gray-400">{formatDate(room.lastAccessedAt)}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -205,23 +157,15 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
                     >
                       <icons.invite className={iconSizes.md} />
                     </button>
-                    <button
-                      onClick={() => handleEdit(room)}
-                      className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
-                      title="Muokkaa huonetta"
-                    >
-                      <icons.edit className={iconSizes.md} />
-                    </button>
+
                     <button
                       onClick={() => handleDelete(room.id)}
                       className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center"
-                      title="Poista huone"
+                      title="Poista juttutupa"
                     >
                       <icons.delete className={iconSizes.md} />
                     </button>
                   </div>
-                </>
-              )}
             </div>
           ))}
         </div>
@@ -232,10 +176,10 @@ export default function RoomList({ onJoinRoom, userName }: RoomListProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
             <h3 className="text-xl font-semibold text-white mb-4">
-              Kutsu huoneeseen {showInviteModal.name}
+              Kutsu juttutupaan {showInviteModal.name}
             </h3>
             <p className="text-gray-300 mb-4">
-              Jaa tämä linkki muille kutsuaksesi heidät liittymään tähän huoneeseen:
+              Jaa tämä linkki muille kutsuaksesi heidät liittymään tähän juttutupaan:
             </p>
             <div className="bg-gray-900 p-3 rounded border border-gray-700 mb-4">
               <code className="text-sm text-blue-400 break-all">

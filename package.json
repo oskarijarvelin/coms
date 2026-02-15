@@ -1,5 +1,5 @@
 {
-  "name": "coms",
+  "name": "juttutupa",
   "version": "1.0.0",
   "description": "Simple web-based audio chat tool using Next.js and LiveKit",
   "scripts": {

@@ -1,4 +1,4 @@
-# Coms - Audio Chat
+# Juttutupa - Audio Chat
 
 A simple and modern web-based audio chat tool built with Next.js, Tailwind CSS, and LiveKit SDK.
 

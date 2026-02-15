@@ -512,7 +512,7 @@ function InviteLinkModal({
               Yleinen kutsulinkki
             </h4>
             <p className="text-sm text-gray-400">
-              Jaa tämä linkki kutsuaksesi kenet tahansa huoneeseen <span className="text-white font-medium">{roomName}</span>
+              Jaa tämä linkki kutsuaksesi kenet tahansa juttutupaan <span className="text-white font-medium">{roomName}</span>
             </p>
             <div className="bg-gray-900 p-3 rounded border border-gray-700">
               <code className="text-sm text-blue-400 break-all block">
@@ -973,7 +973,7 @@ export default function AudioChat() {
     const targetRoom = customRoomName || roomName;
 
     if (!targetRoom || !userName) {
-      alert('Ole hyvä ja syötä sekä huoneen nimi että nimesi');
+      alert('Ole hyvä ja syötä sekä juttutuvan nimi että nimesi');
       return;
     }
 
@@ -998,20 +998,20 @@ export default function AudioChat() {
       setIsConnected(true);
     } catch (error) {
       console.error('Error joining room:', error);
-      alert('Huoneeseen liittyminen epäonnistui. Yritä uudelleen.');
+      alert('Juttutupaan liittyminen epäonnistui. Yritä uudelleen.');
     }
   };
 
   const handleDisconnect = (reason?: DisconnectReason) => {
     let reasonText = 'Tuntematon';
     if (!reason) reasonText = 'Yhteys katkesi';
-    else if (reason === DisconnectReason.CLIENT_INITIATED) reasonText = 'Poistuit huoneesta';
+    else if (reason === DisconnectReason.CLIENT_INITIATED) reasonText = 'Poistuit juttutuvasta';
     else if (reason === DisconnectReason.DUPLICATE_IDENTITY) reasonText = 'Kaksoisidentiteetti (sama nimi liittyi)';
     else if (reason === DisconnectReason.SERVER_SHUTDOWN) reasonText = 'Palvelin sammui';
-    else if (reason === DisconnectReason.PARTICIPANT_REMOVED) reasonText = 'Sinut poistettiin huoneesta';
-    else if (reason === DisconnectReason.ROOM_DELETED) reasonText = 'Huone poistettiin';
+    else if (reason === DisconnectReason.PARTICIPANT_REMOVED) reasonText = 'Sinut poistettiin juttutuvasta';
+    else if (reason === DisconnectReason.ROOM_DELETED) reasonText = 'Juttutupa poistettiin';
     else if (reason === DisconnectReason.STATE_MISMATCH) reasonText = 'Tilaristiriita';
-    else if (reason === DisconnectReason.JOIN_FAILURE) reasonText = 'Huoneeseen liittyminen epäonnistui';
+    else if (reason === DisconnectReason.JOIN_FAILURE) reasonText = 'Juttutupaan liittyminen epäonnistui';
     else reasonText = `Koodi: ${reason}`;
 
     setDisconnectReason(reasonText);
@@ -1019,7 +1019,7 @@ export default function AudioChat() {
     // Show alert if disconnect wasn't user-initiated
     if (reason && reason !== DisconnectReason.CLIENT_INITIATED) {
       setTimeout(() => {
-        alert(`Yhteys katkesi huoneeseen: ${reasonText}`);
+        alert(`Yhteys katkesi juttutupaan: ${reasonText}`);
         handleLeaveRoom();
       }, 500);
     }
@@ -1037,14 +1037,8 @@ export default function AudioChat() {
           <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 mb-6">
             <h1 className="text-3xl font-bold text-center mb-8 text-white flex items-center justify-center gap-3">
               <icons.room className={iconSizes.xl} />
-              Äänichatti
+              Oskarin Juttutuvat
             </h1>
-
-            {(roomName || userName) && (
-              <p className="text-xs text-gray-400 mb-4 text-center">
-                Huone + Nimi muistetaan tällä laitteella.
-              </p>
-            )}
 
             <div className="space-y-4">
               <div>
@@ -1064,14 +1058,14 @@ export default function AudioChat() {
 
               <div>
                 <label htmlFor="roomName" className="block text-sm font-medium text-gray-300 mb-2">
-                  Huoneen nimi
+                  Juttutuvan nimi
                 </label>
                 <input
                   id="roomName"
                   type="text"
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  placeholder="Syötä huoneen nimi tai valitse alta"
+                  placeholder="Syötä juttutuvan nimi tai valitse alta"
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
                 />
@@ -1081,7 +1075,7 @@ export default function AudioChat() {
                 onClick={() => handleJoinRoom()}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 mt-6"
               >
-                Liity huoneeseen
+                Liity juttutupaan
               </button>
             </div>
           </div>
@@ -1142,7 +1136,7 @@ export default function AudioChat() {
                 className="bg-red-700 hover:bg-red-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
                 <icons.leave className={iconSizes.sm} />
-                <span className="hidden sm:inline">Poistu huoneesta</span>
+                <span className="hidden sm:inline">Poistu juttutuvasta</span>
               </button>
             </div>
           </div>

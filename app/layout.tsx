@@ -4,7 +4,7 @@ import '@livekit/components-styles';
 import '@livekit/components-styles/prefabs';
 
 export const metadata: Metadata = {
-  title: "Coms - Audio Chat",
+  title: "Juttutupa - Oskari Järvelin",
   description: "Simple web-based audio chat tool using LiveKit",
   robots: {
     index: false,
